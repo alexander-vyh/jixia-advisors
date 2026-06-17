@@ -21,9 +21,10 @@ could adapt the same advisory model.
 The **reusable workflow framework** (beads/openspec/continuation harness,
 along with the two workflow-integral agents `adversarial-reviewer` and
 `test-quality-reviewer`) lives in a separate repo:
-[`claude-workflow-setup`](https://github.com/alexander-vyh/claude-workflow-setup).
+[`escapement`](https://github.com/alexander-vyh/escapement). This repo is the
+companion to escapement.
 
-This split exists because `claude-workflow-setup` is a sharp,
+This split exists because `escapement` is a sharp,
 opinionated framework that someone else might want to adopt; mixing in
 the agents in this repo (management philosophizers, ux researchers, etc.)
 would muddy that thesis and fail the bureaucracy-design tests its own
@@ -38,43 +39,60 @@ Seven Sages-style mode: up to seven selected views from the larger pool.
 
 The repo can support multiple historical convening models:
 
-- **Jixia:** default everyday mode. Select the right lenses for the moment.
-- **Seven Sages:** bounded synthesis mode. Use up to seven voices from a
-  larger advisor pool.
-- **Areopagus:** rigorous review mode for consequential public, product, or
-  architectural decisions.
-- **Junto:** self-improvement, personal systems, operating cadence, and
-  habit-design mode.
-- **Parishad:** stakeholder and coordination mode for tradeoffs across roles.
-- **Yushitai:** critique, accountability, audit, and red-team mode.
+- **Jixia:** everyday counsel mode. Triage the question, select the smallest
+  useful lens set, and synthesize one practical next action.
+- **Seven Sages:** bounded breadth mode. Collect up to seven compact principles
+  or warnings, compare tensions, and distill short counsel.
+- **Areopagus:** adjudicative review mode. Gate jurisdiction, frame evidence and
+  harm, then return a verdict, remedy, or remand.
+- **Junto:** mutual-improvement mode. Convert the topic into prepared queries,
+  experiments, commitments, and follow-up checks.
+- **Parishad:** interpretive stakeholder mode. Map authorities, roles, duties,
+  conflicts, and the least-violating settlement.
+- **Yushitai:** inspection and accountability mode. Trace evidence paths,
+  identify control gaps, assign severity, and recommend correction or
+  escalation.
 
 The value is not the historical reference itself. The value is relevant
 independent perspectives, productive disagreement, clear tradeoffs, and usable
-counsel. These modes should be benchmarked against real work before being
-treated as settled defaults.
+counsel. Each method must behave differently, not merely swap in advisors with
+different backgrounds. These modes should be benchmarked against real work
+before being treated as settled defaults.
 
 See [docs/advisory-model.md](docs/advisory-model.md) for the fuller naming and
-benchmarking model.
+benchmarking model. Historical source packets for the optional representative
+lenses live in
+[docs/historical-council-sources/README.md](docs/historical-council-sources/README.md).
 
 ## Contents
 
-`claude/agents/` contains 16 personal advisor agents, deployed as symlinks into
+`claude/agents/` contains 20 personal advisor agents, deployed as symlinks into
 `~/.claude/agents/`:
 
 - **Management & leadership lenses:** `management-philosophizer`,
   `manager-tools-advisor`, `delegation-accountability-coach`
+- **Executive & value creation:** `value-creation-advisor`, `capital-allocator`,
+  `ceo-advisor`
 - **Productivity & attention:** `attention-coach`, `behavioral-psychologist`,
   `habit-architect`, `personal-lean-advisor`, `personal-systems-integrator`
 - **UX & design critics:** `ui-design-critic`, `ux-researcher`,
   `information-architect`
 - **Ops & service:** `ops-excellence-advisor`, `service-design-reviewer`,
-  `employee-experience-auditor`
+  `employee-experience-auditor`, `thinking-process-advisor`
 - **Domain:** `dashboard-auditor`
 - **Value & cost:** `value-translator`
 
-Four agents are pinned to `model: opus` (`dashboard-auditor`,
+The **Executive & value creation** cluster is deliberately edgy and
+returns-first — a counterweight to the people-centric leadership lenses.
+`value-creation-advisor` is a PE operating-partner lens (the equity value
+bridge); `capital-allocator` is a cold ROIC/capital-allocation lens (Thorndike's
+*Outsiders*); `ceo-advisor` is the wartime integrator that names the one binding
+constraint. They are built to disagree productively when convened together.
+
+Eight agents are pinned to `model: opus` (`dashboard-auditor`,
 `management-philosophizer`, `personal-systems-integrator`,
-`value-translator`), the ones where false negatives or missed
+`thinking-process-advisor`, `value-translator`, `value-creation-advisor`,
+`capital-allocator`, `ceo-advisor`), the ones where false negatives or missed
 cross-framework tensions are expensive. The remaining 12 are on
 `model: sonnet`.
 

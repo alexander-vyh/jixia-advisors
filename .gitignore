@@ -1,4 +1,7 @@
 
+# Ephemeral multi-agent research findings (not product artifacts)
+.research/
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db
