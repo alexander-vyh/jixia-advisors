@@ -57,7 +57,9 @@ The value is not the historical reference itself. The value is relevant
 independent perspectives, productive disagreement, clear tradeoffs, and usable
 counsel. Each method must behave differently, not merely swap in advisors with
 different backgrounds. These modes should be benchmarked against real work
-before being treated as settled defaults.
+before being treated as settled defaults — though benchmarking informs which
+modes to reach for, not whether to keep them: the modes are kept for their
+intrinsic value regardless of measured payoff.
 
 See [docs/advisory-model.md](docs/advisory-model.md) for the fuller naming and
 benchmarking model. Historical source packets for the optional representative

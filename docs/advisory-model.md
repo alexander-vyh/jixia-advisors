@@ -14,24 +14,36 @@ views from the larger pool.
 
 ## Convening Models
 
-- **Jixia:** default everyday mode. The router selects the most relevant lenses
-  for the current question.
-- **Seven Sages:** bounded synthesis mode. Use up to seven selected views when a
-  question benefits from broader perspective without turning into a crowd.
-- **Areopagus:** rigorous review mode for consequential public, product, or
-  architectural decisions.
-- **Junto:** self-improvement, personal systems, operating cadence, and
-  habit-design mode.
-- **Parishad:** stakeholder and coordination mode for tradeoffs across roles.
-- **Yushitai:** critique, accountability, audit, and red-team mode.
+- **Jixia:** default everyday mode. Triage the question, select the smallest
+  useful advisor mix, add a counter-lens only when it changes the answer, and
+  synthesize one practical next action.
+- **Seven Sages:** bounded breadth mode. Use up to seven selected views to
+  produce compact principles, compare tensions, and converge on short counsel.
+- **Areopagus:** adjudicative review mode. Gate jurisdiction, frame the case,
+  classify evidence and harm, then return a verdict, remedy, or remand.
+- **Junto:** mutual-improvement mode. Turn the topic into prepared queries,
+  truth-seeking discussion, experiments, commitments, and follow-up checks.
+- **Parishad:** interpretive stakeholder mode. Map sources of authority, roles,
+  duties, conflicts, and the least-violating settlement.
+- **Yushitai:** inspection and accountability mode. Trace evidence paths,
+  identify misconduct or control gaps, assign severity, and recommend correction
+  or escalation.
 
 These names are labels for operating patterns, not claims of direct historical
 continuity. They should help the user choose the shape of advice needed for the
-work in front of them.
+work in front of them. Source packets and representative-limit notes for the
+optional historical lenses live in
+[historical-council-sources/README.md](historical-council-sources/README.md).
+
+The method layer should fail if it only swaps advisor backgrounds while keeping
+the same behavior. Each method needs its own entry gate, process phases, output
+shape, and refusal or redirect condition.
 
 ## Benchmarking
 
 The modes should be benchmarked against real work before they become defaults.
+Benchmarking is optional and informs which modes to reach for, not whether to keep
+them — the modes are kept for their intrinsic value regardless of measured payoff.
 Useful comparisons:
 
 - Single advisor vs one advisor plus counter-lens for everyday choices.
