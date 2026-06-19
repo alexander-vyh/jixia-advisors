@@ -1,0 +1,120 @@
+{
+  "_comment": "Canonical registry of the six convening methods (advisor-convening-methods-v2). Stdlib JSON only (no yaml in env). The registry is the SOLE source of truth for field-sets, entry gates, phases, and refusals; the historical-council-sources README is a human-readable summary derived from it. Validate with: python3 jixia/validate_registry.py",
+  "methods": {
+    "jixia": {
+      "display_name": "Jixia Academy",
+      "aliases": ["jixia", "academy"],
+      "default_roster_policy": "practical",
+      "load_policy": "lazy",
+      "practical_selection": "question-driven triage: select the smallest useful mix of advisors from claude/agents/ by relevance, adding a counter-lens only when it materially improves the answer",
+      "entry_gate": "the user needs everyday counsel or a right-sized set of lenses",
+      "refusal": "redirect when the prompt needs formal adjudication, audit, stakeholder treaty-making, or habit-loop design more than general counsel",
+      "verb_field": "next_action",
+      "output_fields": ["diagnosis", "selected_lenses", "dissent", "next_action"],
+      "phases": [
+        {"name": "triage", "produces": ["diagnosis", "selected_lenses"]},
+        {"name": "counsel", "produces": ["dissent"]},
+        {"name": "synthesize", "produces": ["next_action"]}
+      ],
+      "historical_roster": []
+    },
+    "seven-sages": {
+      "display_name": "Seven Sages",
+      "aliases": ["seven-sages", "sages"],
+      "default_roster_policy": "practical",
+      "load_policy": "lazy",
+      "practical_selection": "question-driven: cap active voices at seven, drawing the smallest useful set from claude/agents/ by relevance to the planning question",
+      "entry_gate": "the user wants bounded breadth on an ambiguous planning question",
+      "refusal": "redirect when the question needs evidence trial, source-law interpretation, operational inspection, or long coaching cadence",
+      "verb_field": "distilled_counsel",
+      "output_fields": ["perspectives", "convergence_divergence_map", "distilled_counsel"],
+      "phases": [
+        {"name": "gather-maxims", "produces": ["perspectives"]},
+        {"name": "compare", "produces": ["convergence_divergence_map"]},
+        {"name": "converge", "produces": ["distilled_counsel"]}
+      ],
+      "historical_roster": []
+    },
+    "areopagus": {
+      "display_name": "Areopagus",
+      "aliases": ["areopagus"],
+      "default_roster_policy": "historical",
+      "load_policy": "lazy",
+      "practical_selection": "question-driven: add question-relevant advisors from claude/agents/ alongside the default historical reps when a practical lens is useful",
+      "entry_gate": "the user needs a consequential decision reviewed before action",
+      "refusal": "refuse routine brainstorming or advice when there is no consequential decision to adjudicate",
+      "verb_field": "verdict",
+      "output_fields": ["case_record", "admissible_concerns", "verdict", "remedy_or_remand"],
+      "phases": [
+        {"name": "gate-and-frame", "produces": ["case_record"]},
+        {"name": "classify-evidence", "produces": ["admissible_concerns"]},
+        {"name": "judge", "produces": ["verdict", "remedy_or_remand"]}
+      ],
+      "historical_roster": [
+        {"id": "former-archon-councillor", "type": "role", "source_title": "Aristotle, Constitution of the Athenians, trans. H. Rackham, 1935", "source_url": "https://www.perseus.tufts.edu/hopper/text?doc=Perseus:text:1999.01.0046", "source_note": "Supports former-archon membership and law-guardian tradition; late fourth-century, source-layered, use with source-critical caveats.", "confidence": "high", "module": "jixia/reps/areopagus/former-archon-councillor.md"},
+        {"id": "areopagite-homicide-juror", "type": "role", "source_title": "Douglas M. MacDowell, Athenian Homicide Law in the Age of the Orators, Manchester University Press, 1963", "source_url": "https://doi.org/10.2307/631645", "source_note": "Anchors the Areopagus as a specialized homicide court; jurisdiction-specific, not a generic review board.", "confidence": "high", "module": "jixia/reps/areopagus/areopagite-homicide-juror.md"},
+        {"id": "ephialtean-power-limiter", "type": "exemplar", "source_title": "T. E. Rihll, 'Democracy Denied: Why Ephialtes Attacked the Areiopagus,' JHS 115 (1995), 87-98", "source_url": "https://doi.org/10.2307/631645", "source_note": "Power-limiter lens focused on mandate control and accountability; not an Areopagus member, represents democratic correction.", "confidence": "medium-high", "module": "jixia/reps/areopagus/ephialtean-power-limiter.md"}
+      ]
+    },
+    "junto": {
+      "display_name": "Junto",
+      "aliases": ["junto"],
+      "default_roster_policy": "practical",
+      "load_policy": "lazy",
+      "practical_selection": "question-driven: select advisors from claude/agents/ that aid improvement practice, mutual aid, and civic artifact production",
+      "entry_gate": "the user needs self-improvement, operating cadence, or civic/practical improvement",
+      "refusal": "redirect when the issue needs formal ruling, red-team inspection, or stakeholder authority balancing rather than improvement practice",
+      "verb_field": "experiment_or_commitment",
+      "output_fields": ["queries", "observations", "experiment_or_commitment", "followup_check"],
+      "phases": [
+        {"name": "prepare-queries", "produces": ["queries"]},
+        {"name": "truth-seeking-debate", "produces": ["observations"]},
+        {"name": "commit", "produces": ["experiment_or_commitment", "followup_check"]}
+      ],
+      "historical_roster": []
+    },
+    "parishad": {
+      "display_name": "Parishad",
+      "aliases": ["parishad"],
+      "default_roster_policy": "historical",
+      "load_policy": "lazy",
+      "practical_selection": "question-driven: add question-relevant advisors from claude/agents/ alongside the default historical reps when a practical lens is useful",
+      "entry_gate": "the user needs tradeoffs resolved across roles, duties, sources of authority, or stakeholders",
+      "refusal": "redirect when the ask has no real role/source conflict and only needs tactical advice or audit",
+      "verb_field": "settlement",
+      "output_fields": ["authority_map", "role_obligations", "conflict_interpretation", "settlement"],
+      "phases": [
+        {"name": "map-authority", "produces": ["authority_map"]},
+        {"name": "identify-roles", "produces": ["role_obligations"]},
+        {"name": "interpret-conflict", "produces": ["conflict_interpretation"]},
+        {"name": "settle", "produces": ["settlement"]}
+      ],
+      "historical_roster": [
+        {"id": "mimamsaka-hermeneutician", "type": "role", "source_title": "Richard W. Lariviere, The Naradasmrti, 1989; rev. 2003", "source_url": "https://doi.org/10.1093/jaarel/lfm004", "source_note": "Interprets injunctions and resolves conflicts among sources; source-constrained hermeneutics, not generic ethics.", "confidence": "high", "module": "jixia/reps/parishad/mimamsaka-hermeneutician.md"},
+        {"id": "dharmasastra-reciter", "type": "role", "source_title": "Patrick Olivelle, Manu's Code of Law: A Critical Edition and Translation of the Manava-Dharmasastra, Oxford University Press, 2005", "source_url": "https://www.sacred-texts.com/hin/manu/manu12.htm", "source_note": "Source-reciter/exegete of the dharma texts; normative Brahmanical jurisprudence, not enacted positive law nor a modern lawyer.", "confidence": "high", "module": "jixia/reps/parishad/dharmasastra-reciter.md"},
+        {"id": "narada-procedure-exemplar", "type": "exemplar", "source_title": "Richard W. Lariviere, The Naradasmrti, 1989; rev. 2003", "source_url": "https://sarit.indology.info/sarit-pm/works/naradasmrti.xml?view=div", "source_note": "Court procedure, pleading, and titles-of-law lens; attributed textual sage, not a stable historical person.", "confidence": "medium", "module": "jixia/reps/parishad/narada-procedure-exemplar.md"}
+      ]
+    },
+    "yushitai": {
+      "display_name": "Yushitai (Censorate)",
+      "aliases": ["yushitai", "censorate"],
+      "default_roster_policy": "historical",
+      "load_policy": "lazy",
+      "practical_selection": "question-driven: add question-relevant advisors from claude/agents/ alongside the default historical reps when a practical lens is useful",
+      "entry_gate": "the user needs accountability, audit, remonstrance, or failure-mode detection",
+      "refusal": "redirect when the ask needs open-ended ideation or balanced synthesis rather than inspection and accountability",
+      "verb_field": "corrective_action",
+      "output_fields": ["findings", "evidence_path", "owner", "severity", "corrective_action"],
+      "phases": [
+        {"name": "trace-inspection-path", "produces": ["evidence_path"]},
+        {"name": "collect-evidence", "produces": ["findings", "owner", "severity"]},
+        {"name": "escalate-or-correct", "produces": ["corrective_action"]}
+      ],
+      "historical_roster": [
+        {"id": "investigating-censor", "type": "role", "source_title": "Charles O. Hucker, The Censorial System of Ming China, Stanford University Press, 1966", "source_url": "http://projects.iq.harvard.edu/files/cbdb/files/hucker_official_titles_ocr_searchable_all_pages.pdf", "source_note": "Strong inspection/impeachment lens; office functions shift by dynasty, not a general reviewer.", "confidence": "high", "module": "jixia/reps/yushitai/investigating-censor.md"},
+        {"id": "circuit-inspection-censor", "type": "role", "source_title": "Charles O. Hucker, The Censorial System of Ming China, Stanford University Press, 1966", "source_url": "http://projects.iq.harvard.edu/files/cbdb/files/hucker_official_titles_ocr_searchable_all_pages.pdf", "source_note": "Field-evidence, local-failure, and anti-capture lens; period-specific to censorial circuits.", "confidence": "high", "module": "jixia/reps/yushitai/circuit-inspection-censor.md"},
+        {"id": "discipline-impeachment-censor", "type": "role", "source_title": "Charles O. Hucker, The Censorial System of Ming China, Stanford University Press, 1966", "source_url": "http://projects.iq.harvard.edu/files/cbdb/files/hucker_official_titles_ocr_searchable_all_pages.pdf", "source_note": "Focuses on misconduct classification and documented accusation; not a generic critic.", "confidence": "high", "module": "jixia/reps/yushitai/discipline-impeachment-censor.md"}
+      ]
+    }
+  }
+}

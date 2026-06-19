@@ -7,3 +7,7 @@
 *.db
 .beads-credential-key
 .beads/proxieddb/
+
+# Python bytecode
+__pycache__/
+*.pyc
