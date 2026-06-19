@@ -7,3 +7,10 @@
 *.db
 .beads-credential-key
 .beads/proxieddb/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Agent runtime artifacts (hook-required derived copies; not authoritative)
+.agent/
