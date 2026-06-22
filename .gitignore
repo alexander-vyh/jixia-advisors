@@ -14,3 +14,12 @@ __pycache__/
 
 # Agent runtime artifacts (hook-required derived copies; not authoritative)
 .agent/
+
+# Machine-local Claude Code config/runtime (shared assets live under claude/, no dot)
+.claude/
+
+# Serena LSP cache (per-machine)
+.serena/
+
+# Local gate-signal log (per-machine hook output)
+.beads/.gate-signal.jsonl
