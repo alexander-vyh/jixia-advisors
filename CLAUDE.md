@@ -58,20 +58,7 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 <!-- END BEADS INTEGRATION -->
 
 
-## Build & Test
+## Project Context
 
-_Add your build and test commands here_
-
-```bash
-# Example:
-# npm install
-# npm test
-```
-
-## Architecture Overview
-
-_Add a brief overview of your project architecture_
-
-## Conventions & Patterns
-
-_Add your project-specific conventions here_
+> Not yet documented. Run `/init` in Claude Code to generate Build & Test,
+> Architecture, and Conventions from this repo — or fill them in below.

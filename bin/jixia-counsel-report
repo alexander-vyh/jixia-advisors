@@ -1,0 +1,413 @@
+#!/usr/bin/env python3
+"""jixia-counsel-report — keep/kill evidence tally over the counsel log.
+
+Self-contained, stdlib-only (json, argparse, sys, os, difflib, datetime). No
+repo-local imports — this file may be symlinked / run from anywhere. Computation
+lives in pure functions; main() does argparse/print/exit only.
+
+Reads the append-only JSONL counsel log written by the send-bounce hook and:
+  - joins bounce -> counsel -> restage by (session_id, channel_id) PRIMARY key
+    (hash is evidence-of-change only, NEVER a join key);
+  - classifies each bounce->restage pair as counseled / un-counseled baseline /
+    auto_retry (excluded from both groups);
+  - computes heartbeat totals, bounces fired, per-group restage rate + mean
+    difflib SequenceMatcher ratio;
+  - prints DECIDABLE iff >=6 bounces AND >=2 pairs in EACH comparison group,
+    else NOT YET DECIDABLE with the counts still needed (event-count gate, never
+    a calendar date).
+"""
+
+import argparse
+import datetime
+import difflib
+import json
+import os
+import sys
+
+# ---------------------------------------------------------------------------
+# Pinned constants (from the Test Oracle Brief §0b). The tests encode these
+# independently; the stub re-declares them so the importlib idiom can read them.
+# ---------------------------------------------------------------------------
+
+DEFAULT_LOG_PATH = os.path.expanduser("~/.claude/jixia/counsel-log.jsonl")
+
+# auto_retry mechanical proxy: a no-counsel restage within this many seconds of
+# its matching bounce is a model-reflexive auto-retry, excluded from both groups.
+AUTO_RETRY_WINDOW_T = 90  # seconds
+
+# Decision gate (event-count, never calendar).
+DECIDE_MIN_BOUNCES = 6
+DECIDE_MIN_PER_GROUP = 2
+
+# Pair classification labels.
+COUNSELED = "counseled"
+BASELINE = "baseline"
+AUTO_RETRY = "auto_retry"
+
+
+def read_log(path):
+    """Read JSONL records from path.
+
+    Returns a list of dict records, in file order. Tolerates a malformed /
+    truncated line by skipping it (an append hook may leave a partial final
+    line). A missing path returns [] (a fresh user has no log yet) — NOT a crash.
+    """
+    records = []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except (ValueError, TypeError):
+                    # Truncated/partial final line from an append hook — skip it.
+                    continue
+                if isinstance(obj, dict):
+                    records.append(obj)
+    except (FileNotFoundError, NotADirectoryError, IsADirectoryError):
+        return []
+    except OSError:
+        return []
+    return records
+
+
+def parse_ts(ts):
+    """Parse an ISO-8601 timestamp string into a comparable datetime.
+
+    Returns None if the timestamp is missing/unparseable (caller treats a pair
+    with an unparseable timestamp conservatively).
+    """
+    if not isinstance(ts, str):
+        return None
+    try:
+        return datetime.datetime.fromisoformat(ts)
+    except ValueError:
+        return None
+
+
+def difflib_ratio(bounced_text, restaged_text):
+    """Pinned text-distance metric: SequenceMatcher(None, a, b).ratio()."""
+    return difflib.SequenceMatcher(None, bounced_text, restaged_text).ratio()
+
+
+def _seconds_between(t_early, t_late):
+    """Seconds from t_early to t_late; None if either timestamp is unparseable."""
+    a = parse_ts(t_early)
+    b = parse_ts(t_late)
+    if a is None or b is None:
+        return None
+    return (b - a).total_seconds()
+
+
+def classify_pairs(records):
+    """Join and classify bounce -> restage pairs.
+
+    Joins on (session_id, channel_id) as the PRIMARY key. For each bounce, finds
+    the first matching restage(s) for the same (session, channel); determines
+    whether a `counseled` record intervened (between bounce and restage), and
+    whether a no-counsel restage falls inside AUTO_RETRY_WINDOW_T (=> auto_retry,
+    excluded from both groups). Hash is used only as evidence-of-change.
+
+    Returns a list of pair dicts, each:
+      {"session": s, "channel": c, "label": COUNSELED|BASELINE|AUTO_RETRY,
+       "bounce_text": str, "restage_text": str, "ratio": float}
+    """
+    # Group records by (session, channel), preserving file order.
+    by_key = {}
+    for r in records:
+        if not isinstance(r, dict):
+            continue
+        key = (r.get("session_id"), r.get("channel_id"))
+        by_key.setdefault(key, []).append(r)
+
+    pairs = []
+    for key, recs in by_key.items():
+        session, channel = key
+        # Walk records in order; match each bounce to the next restage on the
+        # same (session, channel). A bounce with no following restage forms no
+        # pair (it still counts toward the bounce total elsewhere).
+        bounces = [r for r in recs if r.get("kind") == "bounced"]
+        restages = [r for r in recs if r.get("kind") == "restaged"]
+        counsels = [r for r in recs if r.get("kind") == "counseled"]
+
+        used_restages = set()
+        for bounce in bounces:
+            # First not-yet-consumed restage that occurs after this bounce.
+            matched = None
+            for idx, rs in enumerate(restages):
+                if idx in used_restages:
+                    continue
+                delta = _seconds_between(bounce.get("ts"), rs.get("ts"))
+                # Restage must occur at or after the bounce (delta >= 0). If a
+                # timestamp is unparseable, treat as a valid (later) pairing.
+                if delta is None or delta >= 0:
+                    matched = (idx, rs, delta)
+                    break
+            if matched is None:
+                continue
+            idx, rs, delta = matched
+            used_restages.add(idx)
+
+            # Did a counsel record intervene for this (session, channel) between
+            # the bounce and the restage (by timestamp)?
+            counseled = False
+            for cs in counsels:
+                d_bounce_to_counsel = _seconds_between(bounce.get("ts"),
+                                                       cs.get("ts"))
+                d_counsel_to_restage = _seconds_between(cs.get("ts"),
+                                                        rs.get("ts"))
+                # Counsel must be at/after the bounce and at/before the restage.
+                if d_bounce_to_counsel is None or d_counsel_to_restage is None:
+                    # Unparseable timestamps: presence of any counsel for this
+                    # (session, channel) counts as intervention (conservative —
+                    # never poisons baseline with a counseled rewrite).
+                    counseled = True
+                    break
+                if d_bounce_to_counsel >= 0 and d_counsel_to_restage >= 0:
+                    counseled = True
+                    break
+
+            bounce_text = bounce.get("text", "")
+            restage_text = rs.get("text", "")
+            ratio = difflib_ratio(bounce_text, restage_text)
+
+            if counseled:
+                label = COUNSELED
+            else:
+                # No counsel intervened: fast restage (within the window) is a
+                # model-reflexive auto_retry; a slow one is a human baseline.
+                if delta is not None and delta <= AUTO_RETRY_WINDOW_T:
+                    label = AUTO_RETRY
+                else:
+                    label = BASELINE
+
+            pairs.append({
+                "session": session,
+                "channel": channel,
+                "label": label,
+                "bounce_text": bounce_text,
+                "restage_text": restage_text,
+                "ratio": ratio,
+            })
+    return pairs
+
+
+def classify_bounce_groups(records):
+    """Classify EVERY bounce (restaged or NOT) into its comparison group, for the
+    per-group restage RATE denominators.
+
+    Join on (session_id, channel_id). A bounce is COUNSELED if a `counseled`
+    record for its (session, channel) occurs at/after it (and at/before its
+    restage when one exists); otherwise BASELINE — UNLESS its restage is a
+    model-reflexive auto_retry (no counsel, within AUTO_RETRY_WINDOW_T), in which
+    case the bounce is excluded from BOTH groups (auto_retry is in neither
+    comparison group, per the brief).
+
+    Returns {"counseled_denom", "counseled_restaged",
+             "baseline_denom", "baseline_restaged"}.
+
+    The per-group rate is restaged / denom = the fraction of that GROUP's bounces
+    that produced a (non-auto_retry) restage. This is deliberately NOT
+    restages / total-bounces: a shared total denominator collapses the rate
+    comparison into a pair-COUNT comparison, which can invert the keep/kill call
+    (counsel can have a higher restage propensity on fewer bounces).
+    """
+    by_key = {}
+    for r in records:
+        if not isinstance(r, dict):
+            continue
+        key = (r.get("session_id"), r.get("channel_id"))
+        by_key.setdefault(key, []).append(r)
+
+    c_denom = c_restaged = b_denom = b_restaged = 0
+    for key, recs in by_key.items():
+        bounces = [r for r in recs if r.get("kind") == "bounced"]
+        restages = [r for r in recs if r.get("kind") == "restaged"]
+        counsels = [r for r in recs if r.get("kind") == "counseled"]
+
+        used = set()
+        for bounce in bounces:
+            # Match the first unconsumed restage at/after this bounce (same
+            # join logic as classify_pairs, so restaged-counts agree with pairs).
+            matched = None
+            for idx, rs in enumerate(restages):
+                if idx in used:
+                    continue
+                delta = _seconds_between(bounce.get("ts"), rs.get("ts"))
+                if delta is None or delta >= 0:
+                    matched = (idx, rs, delta)
+                    break
+            has_restage = matched is not None
+            delta = matched[2] if has_restage else None
+            rs = matched[1] if has_restage else None
+            if has_restage:
+                used.add(matched[0])
+
+            # Counsel intervened? (at/after bounce; at/before restage if one exists)
+            counseled = False
+            for cs in counsels:
+                d_bc = _seconds_between(bounce.get("ts"), cs.get("ts"))
+                if d_bc is None:
+                    counseled = True
+                    break
+                if d_bc < 0:
+                    continue
+                if has_restage:
+                    d_cr = _seconds_between(cs.get("ts"), rs.get("ts"))
+                    if d_cr is None or d_cr >= 0:
+                        counseled = True
+                        break
+                else:
+                    counseled = True
+                    break
+
+            # auto_retry: a fast, un-counseled restage => exclude from BOTH groups.
+            if (has_restage and not counseled
+                    and delta is not None and delta <= AUTO_RETRY_WINDOW_T):
+                continue
+
+            if counseled:
+                c_denom += 1
+                if has_restage:
+                    c_restaged += 1
+            else:
+                b_denom += 1
+                if has_restage:
+                    b_restaged += 1
+
+    return {"counseled_denom": c_denom, "counseled_restaged": c_restaged,
+            "baseline_denom": b_denom, "baseline_restaged": b_restaged}
+
+
+def _mean(values):
+    return sum(values) / len(values) if values else 0.0
+
+
+def compute_report(records):
+    """Compute the full tally from the log records alone.
+
+    Returns a dict with at least:
+      - heartbeats: count of floor_evaluated records
+      - bounces: count of bounced records
+      - counseled_pairs / baseline_pairs / auto_retry_pairs: counts
+      - counseled_rate / baseline_rate: restage rate per group
+      - counseled_mean_ratio / baseline_mean_ratio: mean difflib ratios
+      - decidable: bool (>=6 bounces AND >=2 per group)
+      - needed: human-readable counts still required when not decidable
+    """
+    heartbeats = sum(1 for r in records
+                     if isinstance(r, dict) and r.get("kind") == "floor_evaluated")
+    bounces = sum(1 for r in records
+                  if isinstance(r, dict) and r.get("kind") == "bounced")
+
+    pairs = classify_pairs(records)
+    counseled = [p for p in pairs if p["label"] == COUNSELED]
+    baseline = [p for p in pairs if p["label"] == BASELINE]
+    auto_retry = [p for p in pairs if p["label"] == AUTO_RETRY]
+
+    counseled_pairs = len(counseled)
+    baseline_pairs = len(baseline)
+    auto_retry_pairs = len(auto_retry)
+
+    # Restage rate per group: of THAT GROUP's bounces (restaged or not, auto_retry
+    # excluded), the fraction that produced a restage. The denominator is the
+    # group's own bounce count — never total bounces — so the counseled-vs-baseline
+    # comparison reflects restage PROPENSITY, not pair counts (see
+    # classify_bounce_groups for why a shared denominator inverts the keep/kill call).
+    groups = classify_bounce_groups(records)
+    counseled_denom = groups["counseled_denom"]
+    baseline_denom = groups["baseline_denom"]
+    counseled_rate = (groups["counseled_restaged"] / counseled_denom
+                      if counseled_denom else 0.0)
+    baseline_rate = (groups["baseline_restaged"] / baseline_denom
+                     if baseline_denom else 0.0)
+
+    counseled_mean_ratio = _mean([p["ratio"] for p in counseled])
+    baseline_mean_ratio = _mean([p["ratio"] for p in baseline])
+
+    decidable = (bounces >= DECIDE_MIN_BOUNCES
+                 and counseled_pairs >= DECIDE_MIN_PER_GROUP
+                 and baseline_pairs >= DECIDE_MIN_PER_GROUP)
+
+    needed = []
+    if bounces < DECIDE_MIN_BOUNCES:
+        needed.append("%d more bounces" % (DECIDE_MIN_BOUNCES - bounces))
+    if counseled_pairs < DECIDE_MIN_PER_GROUP:
+        needed.append("%d more counseled pairs"
+                      % (DECIDE_MIN_PER_GROUP - counseled_pairs))
+    if baseline_pairs < DECIDE_MIN_PER_GROUP:
+        needed.append("%d more baseline pairs"
+                      % (DECIDE_MIN_PER_GROUP - baseline_pairs))
+
+    return {
+        "heartbeats": heartbeats,
+        "bounces": bounces,
+        "counseled_pairs": counseled_pairs,
+        "baseline_pairs": baseline_pairs,
+        "auto_retry_pairs": auto_retry_pairs,
+        "counseled_denom": counseled_denom,
+        "baseline_denom": baseline_denom,
+        "counseled_rate": counseled_rate,
+        "baseline_rate": baseline_rate,
+        "counseled_mean_ratio": counseled_mean_ratio,
+        "baseline_mean_ratio": baseline_mean_ratio,
+        "decidable": decidable,
+        "needed": needed,
+    }
+
+
+def format_report(report):
+    """Render the computed report to the printable text block.
+
+    MUST include the heartbeat total, bounces fired, and the decision line:
+    'DECIDABLE' (with both rates + both mean difflib ratios) when the gate is met,
+    else 'NOT YET DECIDABLE' naming the counts/group still needed.
+    """
+    lines = []
+    lines.append("jixia counsel-report")
+    lines.append("=" * 40)
+    lines.append("heartbeats (floor_evaluated): %d" % report["heartbeats"])
+    lines.append("bounces fired:                %d" % report["bounces"])
+    lines.append("")
+    lines.append("counseled pairs:  %d" % report["counseled_pairs"])
+    lines.append("baseline pairs:   %d" % report["baseline_pairs"])
+    lines.append("auto_retry pairs (excluded): %d" % report["auto_retry_pairs"])
+    lines.append("")
+
+    if report["decidable"]:
+        lines.append("DECIDABLE")
+        lines.append("  counseled restage rate:   %.3f  (%d/%d group bounces)"
+                     % (report["counseled_rate"], report["counseled_pairs"],
+                        report["counseled_denom"]))
+        lines.append("  baseline restage rate:    %.3f  (%d/%d group bounces)"
+                     % (report["baseline_rate"], report["baseline_pairs"],
+                        report["baseline_denom"]))
+        lines.append("  counseled mean difflib ratio: %.3f"
+                     % report["counseled_mean_ratio"])
+        lines.append("  baseline mean difflib ratio:  %.3f"
+                     % report["baseline_mean_ratio"])
+    else:
+        lines.append("NOT YET DECIDABLE")
+        if report["needed"]:
+            lines.append("  still needed: " + ", ".join(report["needed"]))
+        else:
+            lines.append("  still needed: more events")
+
+    return "\n".join(lines) + "\n"
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="jixia counsel-report tally")
+    parser.add_argument("--log", default=DEFAULT_LOG_PATH,
+                        help="path to the counsel log JSONL")
+    args = parser.parse_args(argv)
+    records = read_log(args.log)
+    report = compute_report(records)
+    sys.stdout.write(format_report(report))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

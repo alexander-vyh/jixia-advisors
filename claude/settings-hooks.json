@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__plugin_slack_slack__slack_send_message_draft|mcp__claude_ai_Slack__slack_send_message_draft|mcp__plugin_slack_slack__slack_send_message|mcp__claude_ai_Slack__slack_send_message",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/jixia_send_bounce.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__plugin_slack_slack__slack_send_message_draft|mcp__claude_ai_Slack__slack_send_message_draft|mcp__plugin_slack_slack__slack_send_message|mcp__claude_ai_Slack__slack_send_message",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/jixia_send_bounce.py\""
+          }
+        ]
+      }
+    ]
+  }
+}
