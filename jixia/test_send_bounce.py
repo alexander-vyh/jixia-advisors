@@ -179,6 +179,30 @@ class TestSendBounce(_HookCase):
             "a bounce-state line must record (S1, U1,U2)",
         )
 
+    # --- SHOULD-2: denial surfaces channel_id verbatim (join-key protection) --
+    def test_denial_surfaces_channel_id_verbatim(self):
+        """The advised-bounce join is (session_id, channel_id). The SKILL's
+        counseled record must carry a channel_id matching the bounced record;
+        the model can only do that reliably if the denial it relays SHOWS the
+        exact channel_id. A comma-joined group id (U1,U2) is the easy-to-mistype
+        case that, if paraphrased, lands the counseled record on the wrong
+        channel and poisons the baseline (the brief's worst error class). So the
+        deny reason MUST contain the channel verbatim.
+
+        Negative-control intent: a denial that names only the advisor (the prior
+        behavior) but omits the channel passes every other deny assertion yet
+        fails THIS one — that is exactly the fragile implementation SHOULD-2 names."""
+        chan = "U1,U2"
+        decision = self.pre(make_payload(DRAFT_TOOL_PLUGIN, chan, DISAGREE_TEXT))
+        self.assertEqual(decision.get("decision"), "deny")
+        reason = decision.get("reason") or ""
+        self.assertIn(
+            chan, reason,
+            "denial must surface the exact channel_id %r so it can be copied "
+            "verbatim into the counseled record's (session,channel) join key — "
+            "paraphrasing a comma-joined id poisons the report join" % chan,
+        )
+
     # --- A-M4: second-channel-still-eligible (refutes global-session cap) --
     def test_AM4_second_channel_still_eligible(self):
         d1 = self.pre(make_payload(DRAFT_TOOL_PLUGIN, "U1", DISAGREE_TEXT))
