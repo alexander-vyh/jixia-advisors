@@ -88,21 +88,37 @@ to a `bounced` record by `(session_id, channel_id)`, so those two fields MUST ma
 what the hook wrote. `draft_hash` is evidence-of-change only (the report never joins
 on it), so use the hash of the draft you actually counseled on.
 
-Run this (substitute the real draft text and the channel_id of the draft — for an
-advised bounce, that is the channel the hook deferred):
+Run this (substitute the real draft text and the channel_id of the draft). For an
+advised bounce, the deny message the hook surfaced **shows the exact channel id**
+(`channel: …`) — copy that string **verbatim**. Do **not** paraphrase or reconstruct
+it: a comma-joined group id like `U1,U2` mistyped as `U1` or `group-dm` lands this
+record on the wrong channel, and the report then files the eventual re-send as an
+un-counseled baseline (baseline poisoning — the worst error class).
+
+The `session_id` is read from `$CLAUDE_CODE_SESSION_ID`, which must equal the value
+the hook wrote (the hook reads it from its payload's `session_id`; Claude Code
+populates both from the same session UUID). **If `$CLAUDE_CODE_SESSION_ID` is empty,
+the record will not join any bounce** — the snippet below refuses to write in that
+case so a non-joining record never silently poisons the report.
 
 ```bash
 python3 - <<'PY'
-import json, os, hashlib, datetime, pathlib
+import json, os, hashlib, datetime, pathlib, sys
 # --- fill these in ---
 draft = r"""PASTE THE VERBATIM DRAFT TEXT HERE"""
-channel_id = "CHANNEL_ID_OF_THE_DRAFT"   # must match the bounced record's channel_id
+channel_id = "CHANNEL_ID_OF_THE_DRAFT"   # copy VERBATIM from the deny's "channel: …"
 lenses = ["behavioral-psychologist", "manager-tools-advisor"]
 # ---------------------
+session_id = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+if not session_id:
+    # Half the join key is missing: this record could never join a bounce, and a
+    # written-but-non-joining record poisons the report's baseline. Fail closed.
+    sys.exit("REFUSED: $CLAUDE_CODE_SESSION_ID is empty — counseled record would "
+             "not join any bounce. Confirm the session id is set, then re-run.")
 rec = {
     "kind": "counseled",
     "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-    "session_id": os.environ.get("CLAUDE_CODE_SESSION_ID", ""),
+    "session_id": session_id,
     "channel_id": channel_id,
     "lenses": lenses,
     "draft_hash": hashlib.sha256(draft.encode("utf-8")).hexdigest(),

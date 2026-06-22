@@ -176,16 +176,28 @@ def decide_bounce(tool_name, tool_input, session_id, state_path):
 
 def denial_text(channel_id):
     """The deny reason. Names ROUTED_PRIMARY_AGENT and instructs relay-to-
-    human-and-stop with NO autonomous-retry affordance."""
+    human-and-stop with NO autonomous-retry affordance.
+
+    Surfaces the exact channel_id verbatim: the counseled record the SKILL later
+    appends joins to this bounce on (session_id, channel_id). If the channel is
+    not shown here, the model must reconstruct it from memory of a deferred tool
+    call — and a paraphrased / mistyped channel (e.g. the comma-joined "U1,U2")
+    lands the counseled record on the wrong channel, so the report files the
+    eventual re-send as an un-counseled baseline. That baseline-poisoning is the
+    worst error class in the Test Oracle Brief, so the join key is shown, not
+    remembered."""
     return (
         "Jixia send-bounce: this outward message to a multi-user audience has "
         "org-dynamics stakes. Before it goes out, the %s advisor should weigh in "
         "(it is the routed primary lens for messages with interpersonal/"
         "organizational consequences). Surface this suggestion to the human "
-        "VERBATIM: relay that the %s advisor is recommended for this draft, then "
-        "STOP and await their direction (advise via /advise, or send as-is). Do "
-        "NOT re-send, re-stage, or otherwise act on your own — the human must see "
-        "this suggestion and decide." % (ROUTED_PRIMARY_AGENT, ROUTED_PRIMARY_AGENT)
+        "VERBATIM: relay that the %s advisor is recommended for this draft "
+        "(channel: %s), then STOP and await their direction (advise via /advise, "
+        "or send as-is). Do NOT re-send, re-stage, or otherwise act on your own — "
+        "the human must see this suggestion and decide. If they choose /advise, "
+        "use this exact channel id verbatim — %s — never paraphrase or "
+        "reconstruct it." % (
+            ROUTED_PRIMARY_AGENT, ROUTED_PRIMARY_AGENT, channel_id, channel_id)
     )
 
 

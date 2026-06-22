@@ -47,6 +47,27 @@ one JSON object per line. Tests override via `--log` (report) and the
 **`hash` definition (pinned, both artifacts):** `hashlib.sha256(text.encode("utf-8")).hexdigest()`.
 This is *evidence-of-change only* — NEVER a join key (see report §R-2).
 
+**`session_id` source equivalence (pinned, both writers).** The report's PRIMARY
+join key is `(session_id, channel_id)`. The two writers source `session_id` from
+*different* places, and the join is correct **only because these resolve to the
+same value**:
+
+- the **hook** writes `session_id` from its PreToolUse/PostToolUse **payload**
+  (`payload["session_id"]`), and
+- the **`/advise` skill** writes `session_id` from the **environment**
+  (`$CLAUDE_CODE_SESSION_ID`).
+
+Claude Code populates both from the one canonical session UUID, so they are equal
+at runtime. This equivalence is **load-bearing and must hold**: if the two sources
+ever diverge, *every* bounce→counsel join silently returns zero counseled pairs and
+the report misfiles real counsel as un-counseled baseline (baseline poisoning — the
+worst error class, §R-2). It is pinned here (not left implicit) and enforced by
+`jixia/test_join_key_equivalence.py` — a positive test (env value == payload value
+⇒ COUNSELED) and a negative control (divergent sources ⇒ join breaks ⇒ BASELINE).
+The skill additionally **fails closed** (refuses to write the counseled record) when
+`$CLAUDE_CODE_SESSION_ID` is empty, since a record that cannot join is worse than no
+record.
+
 ---
 
 ## §0b. PINNED load-bearing constants (currently underspecified — fixed here)
