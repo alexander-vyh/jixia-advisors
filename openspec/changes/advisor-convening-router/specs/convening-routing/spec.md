@@ -27,7 +27,9 @@ the registry.
 
 `/advise` SHALL run the classifier's selected `(convening model, roster)` automatically,
 without requiring the user to choose from a menu. It MAY state its selection in one line,
-but MUST NOT block on a selection step for a confident match.
+but MUST NOT block on a selection step — the classifier always yields a dispatchable
+model (a clear specialist, else the `jixia` adaptive default; see
+`never-guesses-a-specialist-advise-falls-to-the-adaptive-default`).
 
 #### Scenario: confident match runs automatically
 
@@ -54,17 +56,31 @@ explicitly expanded; it SHALL NOT present the full model×roster×agent grid at 
 - **THEN** the selected model switches to that model and is run, and the override is
   recorded
 
-### Requirement: no-confident-match-offers-never-guesses
+### Requirement: never-guesses-a-specialist-advise-falls-to-the-adaptive-default
 
-The system SHALL offer the `/advise-full` menu (or the model/advisor list) when the
-classifier's confidence is below the no-confident-match threshold, and SHALL NOT dispatch a
-guessed model. Guessing a model on a low-confidence input is a defect.
+`/advise` (no flags) SHALL ALWAYS dispatch exactly one registry model — never a menu,
+never nothing. It SHALL dispatch a **specialist** (`seven-sages`, `areopagus`, `junto`,
+`parishad`, `yushitai`) only when that specialist *clearly wins* the classifier's margin
+gate; otherwise it SHALL dispatch the **`jixia` adaptive-triage default**. The system
+SHALL NOT fake-pick a specialist on weak or tied signal — that is the "guess" this
+requirement forbids. Running the declared, logged `jixia` default on an unclear input is
+NOT a guess: `jixia` is question-driven triage that right-sizes the lenses at runtime.
 
-#### Scenario: ambiguous draft is not force-routed
+The `/advise-full` menu is the always-reachable override (a separate requirement); a
+user re-running `/advise-full` after an auto-pick is the logged accept-vs-override signal.
 
-- **WHEN** `/advise` receives a draft with no confident convening signal
-- **THEN** the system states no confident match and offers the menu, and dispatches no
-  model until the user chooses
+#### Scenario: clear specialist signal routes to the specialist
+
+- **WHEN** `/advise` receives a draft that clearly matches one specialist (e.g. an
+  accountability/audit artifact)
+- **THEN** that specialist is dispatched (e.g. `yushitai`)
+
+#### Scenario: ambiguous or no-signal draft falls to the adaptive default
+
+- **WHEN** `/advise` receives a draft with no confident *specialist* signal — either no
+  specialist scores, or two specialists tie
+- **THEN** the system dispatches `jixia` (the adaptive default), states its pick, and
+  does NOT fake-pick among tied specialists; it never shows a menu or dispatches nothing
 
 ### Requirement: routing-decisions-are-logged
 
