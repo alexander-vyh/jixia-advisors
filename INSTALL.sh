@@ -14,6 +14,8 @@
 #   - claude/skills/advise          -> ~/.claude/skills/advise  (the /advise front door)
 #   - claude/hooks/jixia_send_bounce.py -> ~/.claude/hooks/     (send-bounce hook pair)
 #   - bin/jixia-counsel-report      -> ~/.claude/bin/           (the keep/kill tally)
+#   - jixia/{routing_classifier,dissent,advise_autopick}.py + registry.json + reps/
+#                                   -> ~/.claude/jixia/          (the /advise auto-pick imports)
 #   - ~/.claude/jixia/                                          (counsel-log + bounce-state dir)
 #   - merges claude/settings-hooks.json into ~/.claude/settings.json (Slack staging matchers)
 
@@ -75,13 +77,24 @@ link_path "$REPO_DIR/claude/hooks/jixia_send_bounce.py" "$CLAUDE_DIR/hooks/jixia
 # --- 4. counsel report (bin) ---
 link_path "$REPO_DIR/bin/jixia-counsel-report" "$CLAUDE_DIR/bin/jixia-counsel-report"
 
-# --- 5. runtime state dir (counsel-log + bounce-state live here) ---
+# --- 5. routing classifier + its runtime deps (the /advise auto-pick imports these) ---
+# The advise skill's snippet adds ~/.claude/jixia to sys.path and imports
+# advise_autopick, which imports routing_classifier + dissent; each resolves
+# registry.json relative to its own file, so the module + the registry must sit
+# together. reps/ is symlinked so a historical dissent occupant resolves to its real
+# source-backed rep file. (backup-then-symlink + uninstall handled by link_path.)
+for f in routing_classifier.py dissent.py advise_autopick.py registry.json; do
+  link_path "$REPO_DIR/jixia/$f" "$CLAUDE_DIR/jixia/$f"
+done
+link_path "$REPO_DIR/jixia/reps" "$CLAUDE_DIR/jixia/reps"
+
+# --- 6. runtime state dir (counsel-log + bounce-state live here) ---
 if [ "$UNINSTALL" != "1" ]; then
   mkdir -p "$CLAUDE_DIR/jixia"
   echo "    dir:     $CLAUDE_DIR/jixia (counsel-log.jsonl + bounce-state.jsonl)"
 fi
 
-# --- 6. settings.json hook merge (idempotent: remove-our-entries-then-append) ---
+# --- 7. settings.json hook merge (idempotent: remove-our-entries-then-append) ---
 # Our entries are identified by the command containing 'jixia_send_bounce.py', so
 # re-install never duplicates and --uninstall cleanly removes them.
 SETTINGS="$SETTINGS" HOOKS_BLOCK="$HOOKS_BLOCK" MODE="$([ "$UNINSTALL" = "1" ] && echo uninstall || echo install)" \
