@@ -184,5 +184,54 @@ class TestLowSycophancyPrompt(DissentTestCase):
                 self.assertIn("soften", prompt, "must direct not softening in later rounds")
 
 
+class TestInstalledLayoutAgentResolution(DissentTestCase):
+    """emp.6 handoff: dissent must resolve the advisor pool in BOTH the repo checkout and
+    the INSTALL.sh layout. Installed, dissent.py lives at ~/.claude/jixia/dissent.py, so the
+    repo-relative guess (~/.claude/claude/agents) does NOT exist — the pool is ~/.claude/agents.
+    The custom-swap path (occupant_resolves) is the first real consumer, so it must work there."""
+
+    def test_resolver_prefers_repo_layout_when_present(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            os.makedirs(os.path.join(root, "claude", "agents"))
+            resolved = ds._resolve_agents_dir(repo_root=root, home="/nonexistent-home")
+            self.assertEqual(resolved, os.path.join(root, "claude", "agents"))
+
+    def test_resolver_falls_to_installed_layout_when_repo_layout_absent(self):
+        # Simulate the installed layout: repo-relative dir absent, ~/.claude/agents present.
+        import tempfile
+        with tempfile.TemporaryDirectory() as home:
+            installed = os.path.join(home, ".claude", "agents")
+            os.makedirs(installed)
+            fake_repo_root = os.path.join(home, ".claude")  # == REPO_ROOT when installed
+            resolved = ds._resolve_agents_dir(repo_root=fake_repo_root, home=home)
+            self.assertEqual(resolved, installed,
+                             "installed layout must resolve to ~/.claude/agents, "
+                             "not the non-existent ~/.claude/claude/agents")
+
+    def test_occupant_resolves_against_the_installed_pool(self):
+        # Point the module at a simulated installed pool and confirm a swap resolves
+        # against it (the custom-swap path emp.6's override feature exercises).
+        import tempfile
+        with tempfile.TemporaryDirectory() as pool:
+            with open(os.path.join(pool, "some-installed-advisor.md"), "w") as f:
+                f.write("# advisor\n")
+            saved = ds._AGENTS_DIR
+            try:
+                ds._AGENTS_DIR = pool
+                self.assertTrue(ds.occupant_resolves("some-installed-advisor"))
+                self.assertFalse(ds.occupant_resolves("not-a-real-advisor"))
+            finally:
+                ds._AGENTS_DIR = saved
+
+    def test_missing_pool_in_both_layouts_does_not_crash(self):
+        saved = ds._AGENTS_DIR
+        try:
+            ds._AGENTS_DIR = "/nonexistent/agents/dir"
+            self.assertEqual(ds._real_agents(), set(), "a missing pool yields empty, no raise")
+        finally:
+            ds._AGENTS_DIR = saved
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

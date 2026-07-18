@@ -24,4 +24,4 @@ __pycache__/
 # Local gate-signal log (per-machine hook output)
 .beads/.gate-signal.jsonl
 # bd worktree
-.worktrees/remove-opus-pins/
+.worktrees/

@@ -22,7 +22,40 @@ import os
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
 _REGISTRY_PATH = os.path.join(HERE, "registry.json")
-_AGENTS_DIR = os.path.join(REPO_ROOT, "claude", "agents")
+
+
+def _candidate_agents_dirs(repo_root=None, home=None):
+    """Where the advisor pool can live, in priority order.
+
+    Two supported layouts, and the module runs from EITHER:
+      - repo checkout:   <repo>/claude/agents/          (dissent.py at <repo>/jixia/)
+      - INSTALL.sh dest: ~/.claude/agents/              (dissent.py symlinked to
+                         ~/.claude/jixia/dissent.py, so REPO_ROOT is ~/.claude and the
+                         repo-relative guess resolves to the non-existent
+                         ~/.claude/claude/agents — the installed pool is one level up)
+    """
+    repo_root = repo_root if repo_root is not None else REPO_ROOT
+    home = home if home is not None else os.path.expanduser("~")
+    return [
+        os.path.join(repo_root, "claude", "agents"),   # repo checkout layout
+        os.path.join(home, ".claude", "agents"),       # installed (INSTALL.sh) layout
+    ]
+
+
+def _resolve_agents_dir(repo_root=None, home=None):
+    """The first candidate agents dir that exists; else the repo-relative default.
+
+    Falling back to the repo-relative path when NEITHER exists keeps the old behavior
+    for a fresh/odd checkout (_real_agents tolerates a missing dir).
+    """
+    candidates = _candidate_agents_dirs(repo_root, home)
+    for c in candidates:
+        if os.path.isdir(c):
+            return c
+    return candidates[0]
+
+
+_AGENTS_DIR = _resolve_agents_dir()
 
 with open(_REGISTRY_PATH, encoding="utf-8") as _f:
     _METHODS = json.load(_f)["methods"]
@@ -66,7 +99,12 @@ def _real_rep_ids():
 
 
 def _real_agents():
-    return {f[:-3] for f in os.listdir(_AGENTS_DIR) if f.endswith(".md")}
+    try:
+        return {f[:-3] for f in os.listdir(_AGENTS_DIR) if f.endswith(".md")}
+    except FileNotFoundError:
+        # Neither layout resolved to an existing dir — no advisor pool visible. Return
+        # empty rather than raise; an unresolvable swap then re-seats the default.
+        return set()
 
 
 def occupant_resolves(occupant):
