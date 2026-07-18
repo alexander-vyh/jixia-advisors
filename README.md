@@ -91,12 +91,12 @@ bridge); `capital-allocator` is a cold ROIC/capital-allocation lens (Thorndike's
 *Outsiders*); `ceo-advisor` is the wartime integrator that names the one binding
 constraint. They are built to disagree productively when convened together.
 
-Eight agents are pinned to `model: opus` (`dashboard-auditor`,
-`management-philosophizer`, `personal-systems-integrator`,
-`thinking-process-advisor`, `value-translator`, `value-creation-advisor`,
-`capital-allocator`, `ceo-advisor`), the ones where false negatives or missed
-cross-framework tensions are expensive. The remaining 12 are on
-`model: sonnet`.
+Eight agents (`dashboard-auditor`, `management-philosophizer`,
+`personal-systems-integrator`, `thinking-process-advisor`, `value-translator`,
+`value-creation-advisor`, `capital-allocator`, `ceo-advisor`) carry no `model:`
+pin and inherit the session's model — these are the ones where false negatives
+or missed cross-framework tensions are expensive, so they should always run on
+the strongest model available. The remaining 12 are pinned to `model: sonnet`.
 
 ## Install
 
