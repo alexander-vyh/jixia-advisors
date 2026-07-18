@@ -50,6 +50,16 @@ FALLBACK_ROSTER = "practical"
 FALLBACK_PRIMARY = "behavioral-psychologist"
 FALLBACK_COUNTER_LENS = "manager-tools-advisor"
 
+# The fallback / degraded-seating dissenter still gets a REAL low-sycophancy directive
+# — a degraded run must not silently drop the dissent mandate (the seat's whole point),
+# leaving a decorative dissenter. Kept inline (not imported from dissent) so it holds
+# even when the dissent module is the thing that's absent.
+FALLBACK_DISSENT_DIRECTIVE = (
+    "You hold the mandated dissent seat. Argue the strongest counter-case against the "
+    "emerging consensus, resist agreeing for the sake of consensus, and do not soften "
+    "your position in later rounds. You are FOR the user by refusing to be agreeable."
+)
+
 DEFAULT_LOG_PATH = os.path.expanduser("~/.claude/jixia/counsel-log.jsonl")
 
 
@@ -58,8 +68,13 @@ def _now_iso():
 
 
 def _draft_hash(draft):
-    """sha256 of the VERBATIM draft — evidence the exact artifact was routed."""
-    return hashlib.sha256((draft or "").encode("utf-8")).hexdigest()
+    """sha256 of the VERBATIM draft — evidence the exact artifact was routed.
+
+    ``surrogatepass`` so a draft carrying a lone surrogate (e.g. from a bad paste)
+    hashes deterministically instead of raising UnicodeEncodeError out of plan_run —
+    the always-returns-a-plan invariant must hold for ANY str.
+    """
+    return hashlib.sha256((draft or "").encode("utf-8", "surrogatepass")).hexdigest()
 
 
 def _classify_safe(draft, signals):
@@ -92,12 +107,18 @@ def _seat_safe(model):
 
 def build_routed_record(recommended_model, selected_model, roster, dissenter,
                         confidence, draft, session_id, channel_id,
-                        fell_back=False, entry="advise"):
+                        fell_back=False, dissent_degraded=False, entry="advise"):
     """Build the shared routing-decision record (auto-pick OR override).
 
     recommended_model = what the classifier picked; selected_model = what actually
     ran. They are EQUAL for an auto-pick (an accept) and differ for an override
-    (emp.6). accept-vs-override is computed from exactly these two fields.
+    (emp.6). accept-vs-override is computed from exactly these two fields — BUT joins
+    MUST exclude ``fell_back == True`` records: no classifier ran on those, so
+    ``recommended_model`` is null and they are neither an accept nor an override.
+
+    dissent_degraded = the classifier ran but dissent seating failed; the run still
+    named a real counter-lens with a real directive (never dropped), but the seat is
+    NOT the model's native/resolved one. Additive to the schema (default False).
     """
     return {
         "kind": ROUTED_KIND,
@@ -105,13 +126,14 @@ def build_routed_record(recommended_model, selected_model, roster, dissenter,
         "session_id": session_id or "",
         "channel_id": channel_id or "adhoc",
         "entry": entry,
-        "recommended_model": recommended_model,
+        "recommended_model": recommended_model,   # null when no classifier ran (fell_back)
         "selected_model": selected_model,
         "roster": roster,
         "dissenter": dissenter,
         "confidence": int(confidence),
         "draft_hash": _draft_hash(draft),
         "fell_back": bool(fell_back),
+        "dissent_degraded": bool(dissent_degraded),
     }
 
 
@@ -130,25 +152,33 @@ def plan_run(draft, signals=None, session_id=None, channel_id="adhoc"):
         "dissent_prompt":str|None,  # the low-sycophancy directive set (None if degraded)
         "mandatory":     bool,      # the seat is non-removable
         "fell_back":     bool,      # True iff the classifier was absent/errored
+        "dissent_degraded": bool,   # classifier ran but dissent seating failed (seat not native)
         "dispatch_pair": [str,str]|None,  # the fixed pair to dispatch when fell_back
         "draft":         str,       # the VERBATIM draft, byte-for-byte unchanged
         "record":        dict,      # the routed record, ready to append
       }
     """
     result, fell_back = _classify_safe(draft, signals)
+    dissent_degraded = False
 
     if fell_back or not result:
-        # Degraded mode: the classifier is absent or errored. Run the skeleton's
-        # fixed org-dynamics pair; name the counter-lens as the dissenter.
+        # Degraded mode: the classifier is absent or errored. Run the skeleton's fixed
+        # org-dynamics pair. The record tells the truth about what ran:
+        # recommended_model is None (no classifier recommendation happened);
+        # selected_model is the jixia practical default the fixed pair implements;
+        # fell_back=True is the discriminator (joins exclude these). The fallback
+        # dissenter still carries a real counter-case directive — not decorative.
+        recommended = None
         model = FALLBACK_MODEL
         roster = FALLBACK_ROSTER
         confidence = 0
         dissenter = FALLBACK_COUNTER_LENS
-        dissent_prompt = None
+        dissent_prompt = FALLBACK_DISSENT_DIRECTIVE
         mandatory = True
         dispatch_pair = [FALLBACK_PRIMARY, FALLBACK_COUNTER_LENS]
         fell_back = True
     else:
+        recommended = result["model"]
         model = result["model"]
         roster = result["roster"]
         confidence = result["confidence"]
@@ -158,19 +188,22 @@ def plan_run(draft, signals=None, session_id=None, channel_id="adhoc"):
             dissent_prompt = seat["prompt"]
             mandatory = seat["mandatory"]
         else:
-            # Classifier worked but dissent seating failed: still name a real seat so
-            # the dissenter is present on turn 1 (the invariant must not silently drop).
+            # The classifier ran but dissent seating FAILED. This is NOT a classifier
+            # fallback (fell_back stays False) — it is a distinct degradation, flagged
+            # explicitly so the log does not read as a clean accept with the seat
+            # silently dropped. Still name a real counter-lens with a real directive.
             dissenter = FALLBACK_COUNTER_LENS
-            dissent_prompt = None
+            dissent_prompt = FALLBACK_DISSENT_DIRECTIVE
             mandatory = True
+            dissent_degraded = True
         dispatch_pair = None
         fell_back = False
 
     record = build_routed_record(
-        recommended_model=model, selected_model=model, roster=roster,
+        recommended_model=recommended, selected_model=model, roster=roster,
         dissenter=dissenter, confidence=confidence, draft=draft,
         session_id=session_id, channel_id=channel_id, fell_back=fell_back,
-        entry="advise",
+        dissent_degraded=dissent_degraded, entry="advise",
     )
 
     return {
@@ -181,6 +214,7 @@ def plan_run(draft, signals=None, session_id=None, channel_id="adhoc"):
         "dissent_prompt": dissent_prompt,
         "mandatory": mandatory,
         "fell_back": fell_back,
+        "dissent_degraded": dissent_degraded,
         "dispatch_pair": dispatch_pair,
         "draft": draft,
         "record": record,

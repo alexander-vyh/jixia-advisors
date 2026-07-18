@@ -55,7 +55,8 @@ ap.append_record(plan["record"])   # the auto-pick record — recommended==selec
 print(json.dumps({
     "model": plan["model"], "roster": plan["roster"], "confidence": plan["confidence"],
     "dissenter": plan["dissenter"], "mandatory": plan["mandatory"],
-    "fell_back": plan["fell_back"], "dispatch_pair": plan["dispatch_pair"],
+    "fell_back": plan["fell_back"], "dissent_degraded": plan["dissent_degraded"],
+    "dispatch_pair": plan["dispatch_pair"],
 }))
 PY
 ```
@@ -149,6 +150,10 @@ accept-vs-override rate is computed from `recommended_model` vs `selected_model`
 record is IGNORED by the keep/kill report (which consumes only bounced/counseled/
 restaged) — it is a separate signal.
 
+**Accept-vs-override joins MUST exclude `fell_back == true` records:** no classifier
+ran on those (`recommended_model` is null), so they are neither an accept nor an
+override — counting them either way corrupts the routing-quality rate.
+
 | field | value |
 |---|---|
 | `kind` | `"routed"` |
@@ -156,13 +161,14 @@ restaged) — it is a separate signal.
 | `session_id` | `$CLAUDE_CODE_SESSION_ID` (may be empty; not the accept-vs-override key) |
 | `channel_id` | the draft's channel, or `"adhoc"` |
 | `entry` | `"advise"` (auto-run) or `"advise-full"` (menu; emp.6) |
-| `recommended_model` | the model the classifier picked |
+| `recommended_model` | the model the classifier picked — **`null` when `fell_back`** (no classifier ran) |
 | `selected_model` | the model actually run (== recommended on an auto-pick / accept) |
 | `roster` | the selected model's registry `default_roster_policy` |
 | `dissenter` | who holds the dissent seat |
 | `confidence` | integer classifier margin |
 | `draft_hash` | `sha256(verbatim draft)` |
-| `fell_back` | `true` iff the classifier was absent/errored (degraded to the fixed pair) |
+| `fell_back` | `true` iff the classifier was absent/errored (degraded to the fixed pair) — **exclude from accept-vs-override joins** |
+| `dissent_degraded` | `true` iff the classifier ran but dissent seating failed (a real counter-lens is still named, but not the model's native seat) |
 
 ### `counseled` — the consultation record (keep/kill signal)
 

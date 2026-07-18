@@ -35,6 +35,7 @@ if HERE not in sys.path:
 
 import advise_autopick as ap  # noqa: E402
 import routing_classifier as rc  # noqa: E402  (present in-repo; absence is simulated)
+import dissent as ds  # noqa: E402  (seating; failure is simulated)
 
 # --- Independently-declared shared-schema contract (NOT imported from the module) ---
 # The routed record is the accept-vs-override join surface emp.6 reuses. The two
@@ -43,7 +44,7 @@ import routing_classifier as rc  # noqa: E402  (present in-repo; absence is simu
 ROUTED_REQUIRED_KEYS = {
     "kind", "ts", "session_id", "channel_id", "entry",
     "recommended_model", "selected_model", "roster", "dissenter",
-    "confidence", "draft_hash", "fell_back",
+    "confidence", "draft_hash", "fell_back", "dissent_degraded",
 }
 
 # Clean per-specialist positive from the classifier brief (§R-M3): a textbook audit.
@@ -68,13 +69,16 @@ class AutoPickTestCase(unittest.TestCase):
         self.log_path = os.path.join(self._tmp.name, "counsel-log.jsonl")
         self._saved_rc = sys.modules.get("routing_classifier")
         self._saved_classify = getattr(rc, "classify", None)
+        self._saved_seat = getattr(ds, "seat_dissenter", None)
 
     def tearDown(self):
-        # Restore the classifier module + its classify to a pristine state.
+        # Restore the classifier + dissent modules to a pristine state.
         if self._saved_rc is not None:
             sys.modules["routing_classifier"] = self._saved_rc
         if self._saved_classify is not None:
             rc.classify = self._saved_classify
+        if self._saved_seat is not None:
+            ds.seat_dissenter = self._saved_seat
         self._tmp.cleanup()
 
 
@@ -174,6 +178,68 @@ class TestClassifierErrorDegrades(AutoPickTestCase):
         self.assertTrue(plan["fell_back"])
         self.assertEqual(plan["model"], ap.FALLBACK_MODEL)
         self.assertEqual(plan["record"]["fell_back"], True)
+
+
+class TestSurrogateDraftDoesNotCrash(AutoPickTestCase):
+    """always-returns-a-plan must hold for ANY str — a lone surrogate must not raise
+    UnicodeEncodeError out of plan_run when hashing the draft."""
+
+    def test_lone_surrogate_draft_still_plans_and_hashes(self):
+        draft = "bad \ud800 surrogate"  # lone high surrogate — utf-8 strict would raise
+        plan = ap.plan_run(draft)  # must NOT raise
+        self.assertEqual(plan["draft"], draft, "the surrogate draft passes through verbatim")
+        h = plan["record"]["draft_hash"]
+        self.assertEqual(len(h), 64)
+        int(h, 16)  # a real hex digest, deterministically produced
+        # And it matches the module's own surrogatepass hashing (stable, reproducible).
+        expected = hashlib.sha256(draft.encode("utf-8", "surrogatepass")).hexdigest()
+        self.assertEqual(h, expected)
+
+
+class TestDissentSeatingFailureIsFlagged(AutoPickTestCase):
+    """finding-2: classifier works but dissent seating fails — the run must NOT read as
+    a clean accept with the seat silently dropped. It carries an explicit degradation
+    signal AND still names a real counter-lens with a real directive."""
+
+    def test_seat_failure_flags_degraded_and_keeps_a_real_dissenter(self):
+        def boom(model, customization=None):
+            raise RuntimeError("dissent module is broken")
+
+        ds.seat_dissenter = boom
+        plan = ap.plan_run(AUDIT_DRAFT)  # classifier still routes to yushitai
+
+        # The classifier ran — this is NOT a classifier fallback.
+        self.assertFalse(plan["fell_back"])
+        self.assertEqual(plan["model"], "yushitai")
+        self.assertEqual(plan["record"]["recommended_model"], "yushitai")
+        self.assertEqual(plan["record"]["selected_model"], "yushitai")
+        # But dissent seating degraded — surfaced in BOTH the plan and the record.
+        self.assertTrue(plan["dissent_degraded"])
+        self.assertTrue(plan["record"]["dissent_degraded"])
+        # The seat is not dropped: a real counter-lens with a real (non-empty) directive.
+        self.assertEqual(plan["dissenter"], ap.FALLBACK_COUNTER_LENS)
+        self.assertTrue(plan["dissent_prompt"], "the dissenter must not be decorative")
+        self.assertTrue(plan["mandatory"])
+
+
+class TestFallbackRecordTellsTheTruth(AutoPickTestCase):
+    """finding-3: an absent classifier must not log a record that reads as a clean
+    'jixia' accept. No classifier ran → recommended_model is null; fell_back is the
+    discriminator; the fallback dissenter carries a real directive."""
+
+    def test_fallback_record_has_null_recommendation_and_real_directive(self):
+        sys.modules["routing_classifier"] = None  # simulate the classifier never installed
+        plan = ap.plan_run(AUDIT_DRAFT)
+        rec = plan["record"]
+        self.assertTrue(rec["fell_back"])
+        self.assertIsNone(rec["recommended_model"],
+                          "no classifier ran — recommended_model must be null, not 'jixia'")
+        self.assertEqual(rec["selected_model"], ap.FALLBACK_MODEL,
+                         "selected_model reflects the practical default the fixed pair ran")
+        self.assertNotEqual(rec["recommended_model"], rec["selected_model"],
+                            "a fell_back record must not read as an accept")
+        self.assertFalse(rec["dissent_degraded"])
+        self.assertTrue(plan["dissent_prompt"], "fallback dissenter carries a real directive")
 
 
 class TestRoutedRecordSchema(AutoPickTestCase):
