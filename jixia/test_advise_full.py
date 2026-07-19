@@ -310,6 +310,73 @@ class TestVerbatimDraftPassthrough(AdviseFullTestCase):
         int(h, 16)
 
 
+class TestIsOverrideNeverRaisesOnGarbage(AdviseFullTestCase):
+    """is_override is the decoder emp.7's tally runs over an append-only, CROSS-VERSION
+    log. It must never raise and must exclude (None) records it cannot decide."""
+
+    def test_unknown_selected_model_is_excluded_not_a_crash(self):
+        # recommended==selected==bogus reaches the roster/seat lookups — must not KeyError.
+        rec = {"recommended_model": "bogus-model", "selected_model": "bogus-model",
+               "roster": "practical", "dissenter": "x", "fell_back": False}
+        self.assertIsNone(af.is_override(rec))
+
+    def test_empty_dict_is_excluded(self):
+        self.assertIsNone(af.is_override({}))
+
+    def test_non_dict_record_is_excluded(self):
+        for junk in (None, "routed", 42, ["selected_model"]):
+            with self.subTest(junk=junk):
+                self.assertIsNone(af.is_override(junk))
+
+    def test_missing_keys_do_not_raise(self):
+        self.assertIsNone(af.is_override({"selected_model": "yushitai"}))  # no recommended
+        self.assertIsNone(af.is_override({"recommended_model": "yushitai"}))  # no selected
+
+
+class TestIsOverrideDoesNotMiscountLegacyRecords(AdviseFullTestCase):
+    """Finding 2: null recommendation and missing/null dissenter must not read as overrides."""
+
+    def test_null_recommendation_without_fell_back_is_excluded(self):
+        # A null recommendation means no classifier ran — NOT an override, even if the
+        # fell_back flag is absent (a legacy/hand-edited record).
+        rec = {"recommended_model": None, "selected_model": "yushitai",
+               "roster": "historical", "dissenter": YUSHITAI_NATIVE_DISSENTER}
+        self.assertIsNone(af.is_override(rec))
+
+    def test_missing_or_null_dissenter_is_not_a_phantom_agent_override(self):
+        base = {"recommended_model": "yushitai", "selected_model": "yushitai",
+                "roster": "historical", "fell_back": False, "dissent_degraded": False}
+        # dissenter absent entirely.
+        self.assertFalse(af.is_override(dict(base)))
+        # dissenter explicitly null.
+        self.assertFalse(af.is_override(dict(base, dissenter=None)))
+
+    def test_alias_recommended_vs_canonical_selected_is_an_accept(self):
+        # A legacy record storing an alias must not read as a model override.
+        rec = {"recommended_model": "sages", "selected_model": "seven-sages",
+               "roster": "practical", "dissenter": None, "fell_back": False}
+        self.assertFalse(af.is_override(rec))
+
+
+class TestModelOverrideAliasAndUnknown(AdviseFullTestCase):
+    """Finding 3: a model override resolves through registry aliases, and a truly unknown
+    model degrades cleanly (no traceback out of resolve_selection)."""
+
+    def test_alias_model_override_resolves_to_canonical(self):
+        plan = af.resolve_selection(AUDIT_DRAFT, model="sages")
+        self.assertEqual(plan["model"], "seven-sages", "'sages' is a registry alias")
+        self.assertEqual(plan["record"]["selected_model"], "seven-sages")
+        self.assertIsNone(plan["model_override_unresolved"])
+        self.assertTrue(plan["is_override"])
+
+    def test_unknown_model_override_degrades_to_the_menu_default(self):
+        plan = af.resolve_selection(AUDIT_DRAFT, model="totally-bogus")  # must NOT raise
+        self.assertEqual(plan["model"], "yushitai", "falls back to the pre-selected default")
+        self.assertEqual(plan["model_override_unresolved"], "totally-bogus",
+                         "the unresolved string is surfaced for the SKILL to report")
+        self.assertTrue(plan["record"]["dissenter"], "a real dissenter is still seated")
+
+
 class TestNoRoundsKnobInTheApiSurface(AdviseFullTestCase):
     """round-count-and-synthesis-not-exposed, enforced at the seam: the user cannot select
     a round count or synthesis method because the API has no parameter to express one."""

@@ -67,6 +67,27 @@ assert set(MODEL_ORDER) == set(_METHODS), (
 )
 
 
+# Alias -> canonical model id, built from each method's registry `aliases`, so a
+# user-supplied override like "sages" resolves to "seven-sages" (and "censorate" ->
+# "yushitai"). Canonical ids map to themselves.
+_ALIAS_TO_MODEL = {}
+for _mid, _info in _METHODS.items():
+    _ALIAS_TO_MODEL[_mid] = _mid
+    for _alias in _info.get("aliases", []):
+        _ALIAS_TO_MODEL[_alias] = _mid
+
+
+def _canonical_model(name):
+    """Resolve a model name or registry alias to its canonical id, or None if unknown.
+
+    Tolerant of garbage (non-str, empty, whitespace, or a name absent from the CURRENT
+    registry) so both the override path and the decoder never raise on a user typo or a
+    legacy/hand-edited/cross-version record."""
+    if not name or not isinstance(name, str):
+        return None
+    return _ALIAS_TO_MODEL.get(name) or _ALIAS_TO_MODEL.get(name.strip().lower())
+
+
 def _default_roster(model):
     return _METHODS[model]["default_roster_policy"]
 
@@ -219,7 +240,10 @@ def resolve_selection(draft, model=None, roster=None, agents=None,
     to recover ``recommended_model`` — the accept-vs-override anchor — then overrides are
     layered on:
 
-      model            -> selected_model (differs from recommended => a model override)
+      model            -> selected_model (differs from recommended => a model override);
+                          resolved through registry aliases ("sages" -> "seven-sages"); a
+                          truly unknown model degrades to the menu default and is surfaced
+                          on the plan as ``model_override_unresolved`` (never a crash)
       roster           -> the roster that ran (defaults to selected model's registry policy)
       dissent_occupant -> swap WHO holds the dissent seat (routed through seat_dissenter)
       remove_dissent   -> a removal ATTEMPT; the seat is re-imposed (non-removable)
@@ -237,7 +261,20 @@ def resolve_selection(draft, model=None, roster=None, agents=None,
     recommended = menu["recommended_model"]
     fell_back = menu["fell_back"]
 
-    selected = model or menu["selected_model"]
+    # Normalize a user-supplied model override through the registry aliases ("sages" ->
+    # "seven-sages"). A truly unknown/typo'd model must NEVER crash the resolve snippet:
+    # degrade to the menu's pre-selected default and flag the unresolved string so the
+    # surface can tell the user it ran the default instead.
+    model_override_unresolved = None
+    if model:
+        canonical = _canonical_model(model)
+        if canonical is None:
+            model_override_unresolved = model
+            selected = menu["selected_model"]
+        else:
+            selected = canonical
+    else:
+        selected = menu["selected_model"]
     sel_roster = roster or _default_roster(selected)
 
     customization = {}
@@ -284,6 +321,7 @@ def resolve_selection(draft, model=None, roster=None, agents=None,
         "dispatch_pair": ([_ap.FALLBACK_PRIMARY, _ap.FALLBACK_COUNTER_LENS]
                           if fell_back else None),
         "agents": list(agents) if agents else None,
+        "model_override_unresolved": model_override_unresolved,
         "draft": draft,
         "record": record,
     }
@@ -294,26 +332,53 @@ def resolve_selection(draft, model=None, roster=None, agents=None,
 def is_override(record):
     """Decode a ``routed`` record's accept-vs-override status.
 
-    Returns True (override), False (accept), or None (excluded: a fell_back record, on
-    which no classifier ran). An override is EITHER a different model than the classifier
-    recommended, OR the same model run with a non-default roster or a swapped dissenter —
-    all three are visible against the selected model's registry defaults, so no new
-    schema field is needed to tell an override from an accept.
+    Returns True (override), False (accept), or None (EXCLUDED from the rate). An override
+    is EITHER a different model than the classifier recommended, OR the same model run with
+    a non-default roster or a swapped dissenter — all three are visible against the selected
+    model's registry defaults, so no new schema field is needed to tell them apart.
+
+    This is the decoder emp.7's tally runs over an append-only, cross-version log, so it
+    must NEVER raise and must not silently miscount legacy/hand-edited records. It returns
+    None (excluded) rather than guessing whenever it cannot decide:
+      - a non-dict / structurally invalid record;
+      - a fell_back record (no classifier ran);
+      - a null ``recommended_model`` (no classifier recommendation — not an override);
+      - a ``selected_model`` absent or unknown to the CURRENT registry (cannot resolve its
+        defaults, so roster/seat comparison is undefined).
     """
+    if not isinstance(record, dict):
+        return None
     if record.get("fell_back"):
         return None
-    rec_model = record.get("recommended_model")
-    sel_model = record.get("selected_model")
-    if rec_model != sel_model:
+    recommended = record.get("recommended_model")
+    if recommended is None:
+        # A null recommendation means no classifier ran — neither an accept nor an
+        # override, whether or not fell_back was recorded (legacy/hand-edited records).
+        return None
+    selected = record.get("selected_model")
+    sel_canon = _canonical_model(selected)
+    if sel_canon is None:
+        # selected_model missing, garbage, or from a different registry version — we
+        # cannot resolve its default roster/seat, so we cannot classify it.
+        return None
+    # Model override: the classifier's pick differs from what ran. Compare canonically so
+    # an alias vs its canonical id does not read as an override; an unresolvable
+    # recommended model that differs from the resolvable selected one still counts.
+    rec_canon = _canonical_model(recommended)
+    if rec_canon is None or rec_canon != sel_canon:
         return True
-    if record.get("roster") != _default_roster(sel_model):
+    # Model accepted — check roster + dissent seat against the SELECTED model's defaults.
+    if record.get("roster") != _default_roster(sel_canon):
         return True
     # A degraded seat (dissent seating FAILED — a system fault) names the fixed
-    # counter-lens instead of the model's native/default seat. That is NOT a user
-    # agent-override, so it must not read as one: skip the seat comparison when
-    # dissent_degraded is set (the accept still counts as an accept).
+    # counter-lens instead of the model's native/default seat; that is NOT a user
+    # agent-override, so skip the seat comparison when dissent_degraded is set. Likewise
+    # only compare when a dissenter is actually present — a missing/null dissenter in a
+    # legacy record must not read as a phantom agent-override.
     if not record.get("dissent_degraded"):
-        default_seat = _default_dissenter(sel_model)
-        if default_seat is not None and record.get("dissenter") != default_seat:
-            return True
+        dissenter = record.get("dissenter")
+        if dissenter is not None:
+            default_seat = _default_dissenter(sel_canon)
+            if default_seat is not None and dissenter != default_seat:
+                return True
     return False

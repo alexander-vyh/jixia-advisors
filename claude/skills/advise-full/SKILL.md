@@ -206,6 +206,12 @@ The accept-vs-override rate is computed from these records:
 - **Agent / dissent override** — `dissenter` ≠ the selected model's default seat.
 - **Accept** — `recommended_model == selected_model`, default roster, default seat.
 
+Only a **model**, **roster**, or **dissent-seat** change counts as an override. Selecting
+different NON-dissent advisors (the roster's composition) logs as an **accept** in the
+`routed` record — that composition is recorded downstream in the `counseled` record's
+`lenses`, not here. An analyst reading the accept-vs-override rate should not expect
+membership tweaks to show up as overrides.
+
 `af.is_override(record)` decodes all of these (returns `True`/`False`, or `None` to
 EXCLUDE a record). **Exclude `fell_back == true` records from the rate:** no classifier ran
 on them (`recommended_model` is null), so they are neither an accept nor an override —
