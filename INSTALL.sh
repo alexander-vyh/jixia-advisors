@@ -12,10 +12,11 @@
 # Installs:
 #   - claude/agents/*.md            -> ~/.claude/agents/        (the advisor pool)
 #   - claude/skills/advise          -> ~/.claude/skills/advise  (the /advise front door)
+#   - claude/skills/advise-full     -> ~/.claude/skills/advise-full (the menu + override)
 #   - claude/hooks/jixia_send_bounce.py -> ~/.claude/hooks/     (send-bounce hook pair)
 #   - bin/jixia-counsel-report      -> ~/.claude/bin/           (the keep/kill tally)
-#   - jixia/{routing_classifier,dissent,advise_autopick}.py + registry.json + reps/
-#                                   -> ~/.claude/jixia/          (the /advise auto-pick imports)
+#   - jixia/{routing_classifier,dissent,advise_autopick,advise_full}.py + registry.json + reps/
+#                                   -> ~/.claude/jixia/          (the /advise[-full] imports)
 #   - ~/.claude/jixia/                                          (counsel-log + bounce-state dir)
 #   - merges claude/settings-hooks.json into ~/.claude/settings.json (Slack staging matchers)
 
@@ -68,8 +69,9 @@ for src in "$AGENTS_SRC"/*.md; do
   link_path "$src" "$AGENTS_DST/$(basename "$src")"
 done
 
-# --- 2. /advise skill (directory symlink) ---
+# --- 2. /advise + /advise-full skills (directory symlinks) ---
 link_path "$REPO_DIR/claude/skills/advise" "$CLAUDE_DIR/skills/advise"
+link_path "$REPO_DIR/claude/skills/advise-full" "$CLAUDE_DIR/skills/advise-full"
 
 # --- 3. send-bounce hook ---
 link_path "$REPO_DIR/claude/hooks/jixia_send_bounce.py" "$CLAUDE_DIR/hooks/jixia_send_bounce.py"
@@ -83,7 +85,7 @@ link_path "$REPO_DIR/bin/jixia-counsel-report" "$CLAUDE_DIR/bin/jixia-counsel-re
 # registry.json relative to its own file, so the module + the registry must sit
 # together. reps/ is symlinked so a historical dissent occupant resolves to its real
 # source-backed rep file. (backup-then-symlink + uninstall handled by link_path.)
-for f in routing_classifier.py dissent.py advise_autopick.py registry.json; do
+for f in routing_classifier.py dissent.py advise_autopick.py advise_full.py registry.json; do
   link_path "$REPO_DIR/jixia/$f" "$CLAUDE_DIR/jixia/$f"
 done
 link_path "$REPO_DIR/jixia/reps" "$CLAUDE_DIR/jixia/reps"
