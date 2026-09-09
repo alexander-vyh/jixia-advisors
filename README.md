@@ -1,5 +1,7 @@
 # jixia-advisors
 
+**A companion to [Escapement](https://github.com/alexander-vyh/escapement).**
+
 Personal advisor agents for Claude Code, Codex, and other agentic coding
 surfaces. The pack provides management lenses, design critics, productivity
 advisors, and domain-specific tools. It is source-controlled so the advisors
