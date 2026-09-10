@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Fail-closed verification for the public product story and its live evidence.
+
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_DIR"
+
+JIXIA_VERIFY_LIVE_EVIDENCE=1 \
+PYTEST_ADDOPTS="-p no:cacheprovider" \
+python3 -m pytest -q jixia/test_product_surface.py
