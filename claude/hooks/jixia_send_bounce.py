@@ -53,8 +53,9 @@ QUALIFY_MARKERS = [
 # type. A real deployed agent file in jixia/advisors/.
 ROUTED_PRIMARY_AGENT = "behavioral-psychologist"
 
-# Default user-level paths (overridable for tests).
-_DEFAULT_LOG = os.path.expanduser("~/.claude/jixia/counsel-log.jsonl")
+# Default user-level paths (overridable for tests). The installer also hands the log
+# path to the advise skill's counsel.py through JIXIA_COUNSEL_LOG; both writers share it.
+_DEFAULT_LOG = os.environ.get("JIXIA_COUNSEL_LOG") or os.path.expanduser("~/.claude/jixia/counsel-log.jsonl")
 _DEFAULT_STATE = os.path.expanduser("~/.claude/jixia/bounce-state.jsonl")
 
 
@@ -178,14 +179,14 @@ def denial_text(channel_id):
     """The deny reason. Names ROUTED_PRIMARY_AGENT and instructs relay-to-
     human-and-stop with NO autonomous-retry affordance.
 
-    Surfaces the exact channel_id verbatim: the counseled record the SKILL later
-    appends joins to this bounce on (session_id, channel_id). If the channel is
-    not shown here, the model must reconstruct it from memory of a deferred tool
-    call — and a paraphrased / mistyped channel (e.g. the comma-joined "U1,U2")
-    lands the counseled record on the wrong channel, so the report files the
-    eventual re-send as an un-counseled baseline. That baseline-poisoning is the
-    worst error class in the Test Oracle Brief, so the join key is shown, not
-    remembered."""
+    Surfaces the exact channel_id verbatim: the counseled record that
+    `counsel.py record` later appends joins to this bounce on (session_id,
+    channel_id). If the channel is not shown here, the model must reconstruct it
+    from memory of a deferred tool call — and a paraphrased / mistyped channel
+    (e.g. the comma-joined "U1,U2") lands the counseled record on the wrong
+    channel, so the report files the eventual re-send as an un-counseled
+    baseline. That baseline-poisoning is the worst error class in the Test
+    Oracle Brief, so the join key is shown, not remembered."""
     return (
         "Jixia send-bounce: this outward message to a multi-user audience has "
         "org-dynamics stakes. Before it goes out, the %s advisor should weigh in "
@@ -195,9 +196,11 @@ def denial_text(channel_id):
         "(channel: %s), then STOP and await their direction (advise via /advise, "
         "or send as-is). Do NOT re-send, re-stage, or otherwise act on your own — "
         "the human must see this suggestion and decide. If they choose /advise, "
-        "use this exact channel id verbatim — %s — never paraphrase or "
-        "reconstruct it." % (
-            ROUTED_PRIMARY_AGENT, ROUTED_PRIMARY_AGENT, channel_id, channel_id)
+        "pass --channel %s to the advise skill's `jixia/counsel.py run`, and after "
+        "the counsel record it with `jixia/counsel.py record --channel %s` plus one "
+        "--lens per lens consulted, the draft on stdin. Use this exact channel id "
+        "verbatim — never paraphrase or reconstruct it." % (
+            ROUTED_PRIMARY_AGENT, ROUTED_PRIMARY_AGENT, channel_id, channel_id, channel_id)
     )
 
 

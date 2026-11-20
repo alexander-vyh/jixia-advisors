@@ -3,7 +3,7 @@
 ## Purpose
 
 Make all six convening methods callable in Claude and Codex while keeping
-platform-specific files thin and registry-backed.
+platform-specific files thin aliases of the shared `advise` skill.
 
 ## ADDED Requirements
 
@@ -11,28 +11,28 @@ platform-specific files thin and registry-backed.
 
 The Claude surface SHALL provide direct slash-command wrappers for all six
 methods: `/jixia`, `/seven-sages`, `/areopagus`, `/junto`, `/parishad`, and
-`/yushitai`. Each wrapper SHALL delegate to the shared registry and method
-runner, not embed an independent roster.
+`/yushitai`. Each wrapper SHALL hand the shared `advise` skill its own method
+(`--model <method>`), not embed an independent roster or workflow.
 
 #### Scenario: claude-wrapper-delegates
 
 - **WHEN** `/junto` is invoked
-- **THEN** the command loads the `junto` registry entry and does not contain a
-  hand-maintained copy of the `junto` roster
+- **THEN** the command runs the shared `advise` skill with method `junto` and
+  does not contain a hand-maintained copy of the `junto` roster
 
 ### Requirement: codex-method-skills
 
 The Codex surface SHALL provide project skills or skill aliases that make the
-same six method names triggerable in Codex. Skill metadata MUST name the method
-and route to the same registry-backed runner or instructions used by Claude. The
+same six method names triggerable in Codex. Skill metadata MUST name the method,
+and the skill MUST hand the same shared `advise` skill that method. The
 skill file format SHOULD follow the existing `.agents/skills/beads/SKILL.md`
 exemplar (frontmatter + metadata shape) rather than inventing a new one.
 
 #### Scenario: codex-method-name-triggers
 
 - **WHEN** the user asks Codex to "run yushitai on this plan"
-- **THEN** the `yushitai` method skill is discoverable by metadata and routes to
-  the registry entry for `yushitai`
+- **THEN** the `yushitai` method skill is discoverable by metadata and runs the
+  shared `advise` skill with method `yushitai`
 
 ### Requirement: explicit-historical-flag
 

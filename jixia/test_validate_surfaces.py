@@ -130,24 +130,24 @@ class TestMutations(unittest.TestCase):
             self, self.registry, self.root, "junto", "S3 embedded roster"
         )
 
-    # --- S3: wrapper that stops delegating to the registry -----------------
+    # --- S3: wrapper that stops delegating to the advise skill --------------
     def test_S3_wrapper_not_delegating_fails(self):
         p = self._path("claude/commands/jixia.md")
-        text = open(p, encoding="utf-8").read().replace("registry.json", "REMOVED")
+        text = open(p, encoding="utf-8").read().replace("advise/SKILL.md", "REMOVED")
         with open(p, "w", encoding="utf-8") as f:
             f.write(text)
         assert_rejects_naming(
             self, self.registry, self.root, "jixia", "S3 no delegation"
         )
 
-    # --- S4: Codex skill that stops delegating -----------------------------
-    def test_S4_skill_not_delegating_fails(self):
+    # --- S4: Codex skill that hands advise a different method ---------------
+    def test_S4_skill_delegating_the_wrong_method_fails(self):
         p = self._path(".agents/skills/seven-sages/SKILL.md")
-        text = open(p, encoding="utf-8").read().replace("registry.json", "REMOVED")
+        text = open(p, encoding="utf-8").read().replace("--model seven-sages", "--model jixia")
         with open(p, "w", encoding="utf-8") as f:
             f.write(text)
         assert_rejects_naming(
-            self, self.registry, self.root, "seven-sages", "S4 no delegation"
+            self, self.registry, self.root, "seven-sages", "S4 wrong method"
         )
 
     # --- S5: Codex skill frontmatter name drift ----------------------------

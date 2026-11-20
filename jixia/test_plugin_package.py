@@ -1,5 +1,6 @@
 """The committed plugin must match the shared core and run without the source checkout."""
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -24,8 +25,9 @@ def test_catalog_plugin_installs_as_real_files_and_runs_standalone(tmp_path):
     assert not (plugin / "bin").exists()
 
     core = shutil.copytree(plugin, tmp_path / entry["name"]) / "skills/advise/jixia"
+    env = {key: value for key, value in os.environ.items() if key != "JIXIA_COUNSEL_LOG"}
     plan = json.loads(subprocess.check_output(
-        [sys.executable, "-B", core / "counsel.py", "run"], cwd=tmp_path,
+        [sys.executable, "-B", core / "counsel.py", "run"], cwd=tmp_path, env=env,
         input=b"Audit this rollout for failure modes and root cause."))
     assert plan["model"] == "yushitai" and plan["mandatory"]
     assert (core / "reps/yushitai" / (plan["dissenter"] + ".md")).is_file()

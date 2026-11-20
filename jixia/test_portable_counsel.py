@@ -1,4 +1,4 @@
-"""Black-box checks for the read-only skill helper, invoked outside its install dir."""
+"""Black-box checks for the skill's planner CLI, invoked outside its install dir."""
 
 import json
 import os
@@ -19,10 +19,13 @@ class PortableCounselTests(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         self.work = Path(directory.name)
 
-    def invoke(self, *args, draft=AUDIT):
+    def invoke(self, *args, draft=AUDIT, **env):
+        # Never inherit a real counsel log or session from the developer's shell.
+        inherited = {key: value for key, value in os.environ.items()
+                     if key not in ("JIXIA_COUNSEL_LOG", "CLAUDE_CODE_SESSION_ID")}
         return subprocess.run([sys.executable, "-B", str(CLI), *args], input=draft,
                               capture_output=True, text=True, cwd=self.work,
-                              env={**os.environ, "HOME": str(self.work)})
+                              env={**inherited, "HOME": str(self.work), **env})
 
     def request(self, *args, **kwargs):
         proc = self.invoke(*args, **kwargs)
@@ -96,6 +99,29 @@ class PortableCounselTests(unittest.TestCase):
                 self.assertEqual(proc.stdout, "")
                 self.assertIn(message, proc.stderr)
 
+
+    def test_configured_log_records_auto_and_menu_routing_decisions(self):
+        log = self.work / "jixia" / "counsel-log.jsonl"
+        logged = {"JIXIA_COUNSEL_LOG": str(log), "CLAUDE_CODE_SESSION_ID": "S1"}
+        self.request("run", **logged)
+        self.request("run", "--model", "areopagus", "--from-menu", "--channel", "U1,U2", **logged)
+        self.request("menu", **logged)  # showing the menu is not a routing decision
+        auto, chosen = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual((auto["kind"], auto["entry"], auto["session_id"], auto["channel_id"]),
+                         ("routed", "advise", "S1", "adhoc"))
+        self.assertEqual(auto["recommended_model"], auto["selected_model"])
+        self.assertEqual((chosen["entry"], chosen["channel_id"], chosen["selected_model"]),
+                         ("advise-full", "U1,U2", "areopagus"))
+        self.assertEqual(chosen["recommended_model"], "yushitai")
+
+    def test_record_refuses_without_a_configured_log_or_session(self):
+        log = self.work / "counsel-log.jsonl"
+        for env, missing in [({}, "JIXIA_COUNSEL_LOG"),
+                             ({"JIXIA_COUNSEL_LOG": str(log)}, "CLAUDE_CODE_SESSION_ID")]:
+            proc = self.invoke("record", "--channel", "U1", "--lens", "ceo-advisor", **env)
+            self.assertEqual(proc.returncode, 2)
+            self.assertIn(missing, proc.stderr)
+        self.assertFalse(log.exists())
 
 if __name__ == "__main__":
     unittest.main()
