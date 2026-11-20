@@ -6,7 +6,7 @@
     {
       "name": "jixia-advisors",
       "source": "./plugins/jixia-advisors",
-      "description": "Choose an advisory method and a small roster, hear the counter-case, and leave with a concrete next action.",
+      "description": "Choose an advisory method and a small roster, watch the advisors argue it out, hear the counter-case, and leave with a concrete next action.",
       "category": "Productivity"
     }
   ]

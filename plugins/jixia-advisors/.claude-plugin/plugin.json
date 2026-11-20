@@ -1,7 +1,7 @@
 {
   "name": "jixia-advisors",
-  "version": "1.0.0",
-  "description": "Choose an advisory method and a small roster, hear the counter-case, and leave with a concrete next action.",
+  "version": "1.1.0",
+  "description": "Choose an advisory method and a small roster, watch the advisors argue it out, hear the counter-case, and leave with a concrete next action.",
   "author": {
     "name": "Jixia Advisors"
   },

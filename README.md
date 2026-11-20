@@ -108,7 +108,8 @@ Installing needs no build, connector, or API key.
 
 Try **“Use Jixia Advisors to review this rollout decision. Show me the proposed
 method and roster before proceeding.”** Accept or change the selection; expect
-a recommendation, a counter-case, and a concrete next action. In plain chat
+each advisor's own view, their exchange and remaining disagreements, the
+counter-case, then the method's ruling and a concrete next action. In plain chat
 these are lenses applied in one conversation, not separate agents. When Python
 is unavailable the skill uses the bundled method and roster files directly.
 The plugin includes no Slack hooks, connectors, or counsel logging.
