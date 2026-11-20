@@ -11,9 +11,9 @@ with no menu:
     holds the non-removable dissent seat, so the skill can NAME the dissenter on
     the first turn.
 
-The skill itself (``claude/skills/advise/SKILL.md``) states the pick + dissenter
-and dispatches the model on the VERBATIM draft; this module makes the routing
-decision, seats the dissenter, and writes ONE ``routed`` record to the counsel log.
+The advise skill states the pick + dissenter (through ``counsel.py``) and convenes
+the model on the VERBATIM draft; this module makes the routing decision, seats the
+dissenter, and builds the ``routed`` and ``counseled`` counsel-log records.
 
 Fail-safe (the load-bearing robustness property): if the classifier is ABSENT
 (module never installed) or ERRORS, ``/advise`` must still act — it degrades to the
@@ -41,6 +41,7 @@ import os
 # exact shape, differing only in that selected_model != recommended_model. Renaming
 # any of these breaks the accept-vs-override join.
 ROUTED_KIND = "routed"
+COUNSELED_KIND = "counseled"
 
 # Fixed fallback pair — the advisor-routing skeleton default for an outward message
 # with org-dynamics stakes. Used ONLY when the classifier is absent/errors. The
@@ -135,6 +136,22 @@ def build_routed_record(recommended_model, selected_model, roster, dissenter,
     }
 
 
+def build_counseled_record(session_id, channel_id, lenses, draft):
+    """Build the consultation record the keep/kill report joins to a bounce.
+
+    The join key is (session_id, channel_id); both must match what the send-bounce hook
+    wrote. draft_hash is evidence-of-change only, never a join key.
+    """
+    return {
+        "kind": COUNSELED_KIND,
+        "ts": _now_iso(),
+        "session_id": session_id,
+        "channel_id": channel_id,
+        "lenses": list(lenses),
+        "draft_hash": _draft_hash(draft),
+    }
+
+
 def plan_run(draft, signals=None, session_id=None, channel_id="adhoc"):
     """Compute the full /advise auto-pick plan. ALWAYS returns a dispatchable plan.
 
@@ -220,7 +237,7 @@ def plan_run(draft, signals=None, session_id=None, channel_id="adhoc"):
 
 
 def append_record(record, log_path):
-    """Append one routed record as a JSON line to the counsel log (creating the dir).
+    """Append one record as a JSON line to the counsel log (creating the dir).
 
     Append-only, one object per line — the same JSONL contract the hook + counseled
     record write to. Returns the record for convenience.

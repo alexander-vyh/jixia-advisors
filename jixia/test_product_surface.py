@@ -336,21 +336,32 @@ def test_claude_installer_migrates_owned_links_and_keeps_the_pool_isolated(tmp_p
     install("--uninstall")
     assert not legacy.is_symlink()
 
+    # Reinstalling over the older layout replaces its skill link and retires the
+    # module links its Claude-only skill imported.
     legacy.symlink_to(old_target)
+    (host / "skills").mkdir()
+    (host / "skills" / "advise").symlink_to(ROOT / "claude" / "skills" / "advise")
+    (host / "jixia").mkdir()
+    retired = host / "jixia" / "dissent.py"
+    retired.symlink_to(ROOT / "jixia" / "dissent.py")
     install()
     install()
     assert '"café — keep…"' in settings.read_text(encoding="utf-8")
-    pool = ROOT / "jixia" / "advisors"
-    installed = host / "jixia"
-    for definition in pool.glob("*.md"):
+    log_path = json.loads(settings.read_text(encoding="utf-8"))["env"]["JIXIA_COUNSEL_LOG"]
+    assert log_path == str(host / "jixia" / "counsel-log.jsonl")
+    assert not retired.is_symlink()
+    skills = ROOT / "plugins" / "jixia-advisors" / "skills"
+    for skill in ("advise", "advise-full"):
+        assert (host / "skills" / skill).samefile(skills / skill)
+    for definition in (ROOT / "jixia" / "advisors").glob("*.md"):
         assert (named / definition.name).samefile(definition)
-    assert (installed / "advisors").samefile(pool)
     subprocess.run(
         [sys.executable, "-I", "-c",
          "import sys; sys.path.insert(0, sys.argv[1]); import dissent; "
          "assert dissent.occupant_resolves('ceo-advisor', 'jixia', 'practical'); "
          "assert dissent.occupant_resolves('ephialtean-power-limiter', 'areopagus', 'historical'); "
-         "assert not dissent.occupant_resolves('my-private-agent', 'jixia', 'practical')", str(installed)],
+         "assert not dissent.occupant_resolves('my-private-agent', 'jixia', 'practical')",
+         str(host / "skills" / "advise" / "jixia")],
         env=env, cwd=tmp_path, check=True,
     )
 
@@ -360,7 +371,8 @@ def test_claude_installer_migrates_owned_links_and_keeps_the_pool_isolated(tmp_p
     install("--uninstall")
     assert legacy.samefile(personal)
     assert {p.name for p in named.iterdir()} == {legacy.name, personal.name}
-    assert not (installed / "advisors").is_symlink()
+    assert not (host / "skills" / "advise").is_symlink()
+    assert "JIXIA_COUNSEL_LOG" not in settings.read_text(encoding="utf-8")
 
 
 def test_product_surfaces_match_the_executable_contract():

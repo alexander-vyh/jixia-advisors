@@ -21,9 +21,9 @@ outcome:
 
 There is no separate Jixia application. `/advise` is the shortest installed
 front door. This tour deliberately uses `/advise-full` to show and override the
-recommendation before anything runs. That produces a named practical roster the
-installed surface can dispatch end to end. In Codex, use `$advise` and ask to see
-the menu first, or invoke one of the six method skills directly in this checkout.
+recommendation before anything runs. The same skill runs in Claude Desktop,
+ChatGPT, omp, and Codex: ask it to show the menu first (`$advise` in Codex), or
+use one of the six method skills in this checkout.
 
 ## 1. Frame the work
 
@@ -56,9 +56,8 @@ dissent seat: discipline-impeachment-censor
 
 That is an inspection-and-accountability recommendation, not the everyday
 `jixia` fallback. The prompt's accountability language is the winning specialist
-signal. This tour does not accept that historical route: the current installed
-front door resolves its method, roster policy, and dissenter, but does not carry
-the historical roster definitions and output contract into its run plan.
+signal. Accepting it would convene Yushitai's historical representatives; this
+tour instead overrides it to show the menu's roster and agent layers.
 
 ## 3. Resolve an installed roster
 
@@ -78,9 +77,7 @@ override: true
 ```
 
 Both named advisors are part of the 20-agent pool installed by `INSTALL.sh`.
-Every advisor receives the verbatim prompt and the same stakes context. This
-explicit override avoids pretending that the current installed auto-route can
-expand a historical method plan it does not yet carry.
+Every advisor receives the verbatim prompt and the same stakes context.
 
 ## 4. Keep dissent structural
 
@@ -94,9 +91,10 @@ council.
 
 ## 5. Synthesize into action
 
-The response attributes material points to their lenses, names the dissenter's
-counter-case, and ends with a concrete change. A representative synthesis for
-this resolved practical run is shaped like this:
+The response first shows each advisor's opening view, then their exchange (the
+dissenter attacks the emerging consensus and the other lens answers), then where
+they still disagree. It ends with the method's ruling, which for this resolved
+practical run is shaped like this:
 
 ```text
 diagnosis
@@ -139,7 +137,7 @@ important unfinished product question.
 
 Jixia replaces “ask the model to think harder” with a deliberate advisory move:
 bring in the few perspectives that see different failure modes, preserve one
-counter-case, and leave with an action rather than a transcript of debate.
+counter-case, show where they disagree, and leave with an action.
 
 For the implementation record and counterevidence, see
 [Evidence](EVIDENCE.md). For current delivery boundaries, return to

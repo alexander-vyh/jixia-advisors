@@ -13,9 +13,10 @@ Slack hooks (no-v1-trigger-coupling): it reads files, nothing else.
 Checks (each error string NAMES the offending method or source so callers can locate it):
   S1 - every registry method has a Claude command wrapper claude/commands/<method>.md
   S2 - every registry method has a Codex skill .agents/skills/<method>/SKILL.md
-  S3 - each Claude wrapper DELEGATES to the registry (references registry.json) and does
-       NOT embed a hand-maintained roster (no copied list of jixia/advisors advisor names)
-  S4 - each Codex skill DELEGATES to the registry (references registry.json)
+  S3 - each Claude wrapper DELEGATES to the shared advise skill for its own method
+       (references advise/SKILL.md and `--model <method>`) and does NOT embed a
+       hand-maintained roster (no copied list of jixia/advisors advisor names)
+  S4 - each Codex skill DELEGATES to the shared advise skill for its own method
   S5 - each Codex skill's frontmatter `name:` equals the method id it serves
   S6 - every advisor / rep a surface references resolves in the REPO:
        jixia/advisors/<name>.md must exist; any jixia/reps/<...>.md path must exist
@@ -112,31 +113,34 @@ def validate(registry, repo_root):
         else:
             skill_text = _read(skill_path)
 
+        # Both surfaces are aliases: they hand the shared advise skill their own method.
+        delegation = ("advise/SKILL.md", "--model %s" % name)
+
         # --- S3: Claude wrapper delegates, does not embed a roster ----------
         if cmd_text is not None:
-            if "registry.json" not in cmd_text:
+            if not all(token in cmd_text for token in delegation):
                 errors.append(
                     "S3: Claude wrapper for method %r does not delegate to the "
-                    "registry (no reference to registry.json)" % name
+                    "advise skill with --model %s" % (name, name)
                 )
             # Embedded-roster guard: a wrapper that hand-maintains a roster lists
-            # multiple real advisor ids verbatim. A delegating wrapper points at the
-            # registry / a reps directory and names at most incidental examples.
+            # multiple real advisor ids verbatim. A delegating wrapper names at most
+            # incidental examples.
             named = set(_ADVISOR_REF.findall(cmd_text))
             embedded = named & repo_advisors
             if len(embedded) >= 3:
                 errors.append(
                     "S3: Claude wrapper for method %r appears to embed a "
                     "hand-maintained roster (names %d repo advisors: %s); it must "
-                    "delegate to the registry instead"
+                    "delegate to the advise skill instead"
                     % (name, len(embedded), ", ".join(sorted(embedded)))
                 )
 
         # --- S4: Codex skill delegates -------------------------------------
-        if skill_text is not None and "registry.json" not in skill_text:
+        if skill_text is not None and not all(token in skill_text for token in delegation):
             errors.append(
-                "S4: Codex skill for method %r does not delegate to the registry "
-                "(no reference to registry.json)" % name
+                "S4: Codex skill for method %r does not delegate to the advise "
+                "skill with --model %s" % (name, name)
             )
 
         # --- S5: Codex skill name matches the method -----------------------
@@ -207,7 +211,7 @@ def main(argv=None):
         for e in errors:
             print("  - " + e, file=sys.stderr)
         return 1
-    print("OK: surfaces valid (6 methods, Claude + Codex, registry-delegating, "
+    print("OK: surfaces valid (6 methods, Claude + Codex, advise-delegating, "
           "repo-resolved, README provenance in sync).")
     return 0
 

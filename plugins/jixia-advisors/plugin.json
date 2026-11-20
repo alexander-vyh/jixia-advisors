@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "jixia-advisors",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Choose an advisory method and a small roster, watch the advisors argue it out, hear the counter-case, and leave with a concrete next action.",
   "author": { "name": "Jixia Advisors" },
   "homepage": "https://github.com/alexander-vyh/jixia-advisors",

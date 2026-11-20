@@ -6,15 +6,16 @@ two halves of that key's `session_id` are written by DIFFERENT sources:
 
   - the HOOK writes session_id from its payload (`payload["session_id"]`,
     claude/hooks/jixia_send_bounce.py),
-  - the SKILL writes session_id from the environment
-    (`os.environ["CLAUDE_CODE_SESSION_ID"]`, claude/skills/advise/SKILL.md).
+  - the SKILL writes session_id from the environment: `counsel.py record` reads
+    `$CLAUDE_CODE_SESSION_ID` (jixia/counsel.py).
 
 The report join is correct ONLY if those two sources resolve to the same value.
 The counsel-report suite's other fixtures feed a literal `session_id="S1"` to BOTH
 sides, so they never exercise the env-var path and would stay green even if the two
-sources diverged. This module closes that gap: it drives the SKILL's ACTUAL env-var
-expression end-to-end through the report's classifier, with a negative control that
-proves divergence breaks the join (the silent baseline-poisoning SHOULD-1 names).
+sources diverged. This module closes that gap: it writes the counseled record with
+the real `counsel.py record` and feeds it through the report's classifier, with a
+negative control that proves divergence breaks the join (the silent
+baseline-poisoning SHOULD-1 names).
 
 These tests assert on `classify_pairs(...)` labels — the layer the report actually
 acts on — not on intermediate state.
@@ -24,7 +25,11 @@ import datetime
 import hashlib
 import importlib.machinery
 import importlib.util
+import json
 import os
+import subprocess
+import sys
+import tempfile
 import unittest
 
 # --- pinned importlib absolute-path idiom (SHARED BUILD CONTRACT) ------------
@@ -62,10 +67,18 @@ def _bounced(session, channel, text, off=0):
             "channel_id": channel, "text": text, "hash": _sha(text)}
 
 
-def _counseled(session, channel, draft_hash, off=0,
-               lenses=("behavioral-psychologist", "manager-tools-advisor")):
-    return {"kind": "counseled", "ts": _ts(off), "session_id": session,
-            "channel_id": channel, "lenses": list(lenses), "draft_hash": draft_hash}
+def _counseled_via_cli(session_env, channel, draft, off):
+    """The counseled record exactly as the skill appends it after a bounce."""
+    with tempfile.TemporaryDirectory() as tmp:
+        log = os.path.join(tmp, "counsel-log.jsonl")
+        env = {**os.environ, "JIXIA_COUNSEL_LOG": log, "CLAUDE_CODE_SESSION_ID": session_env}
+        subprocess.run([sys.executable, "-B", os.path.join(HERE, "counsel.py"), "record",
+                        "--channel", channel, "--lens", "behavioral-psychologist"],
+                       input=draft, text=True, env=env, check=True, capture_output=True)
+        with open(log, encoding="utf-8") as f:
+            (record,) = [json.loads(line) for line in f]
+    record["ts"] = _ts(off)  # place it between the fixture bounce and restage
+    return record
 
 
 def _restaged(session, channel, text, off=0):
@@ -76,22 +89,6 @@ def _restaged(session, channel, text, off=0):
 class TestJoinKeySourceEquivalence(unittest.TestCase):
     """Pins that the hook's payload-sourced session_id and the SKILL's env-sourced
     session_id MUST resolve to the same value for the report join to hold."""
-
-    def setUp(self):
-        self._saved = os.environ.get("CLAUDE_CODE_SESSION_ID")
-
-    def tearDown(self):
-        if self._saved is None:
-            os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
-        else:
-            os.environ["CLAUDE_CODE_SESSION_ID"] = self._saved
-
-    @staticmethod
-    def _skill_session_id():
-        # The EXACT expression the SKILL's record snippet uses to source the
-        # counseled record's session_id (claude/skills/advise/SKILL.md):
-        #     os.environ.get("CLAUDE_CODE_SESSION_ID", "")
-        return os.environ.get("CLAUDE_CODE_SESSION_ID", "")
 
     _DRAFT = ("I respectfully disagree with the proposed reorg and have real "
               "concerns about how this lands with the team. " * 3)
@@ -108,11 +105,10 @@ class TestJoinKeySourceEquivalence(unittest.TestCase):
         wrote into the bounce, the env-sourced counseled record JOINS and the
         bounce classifies COUNSELED."""
         hook_session = "sess-uuid-abc123"            # what the hook wrote (payload)
-        os.environ["CLAUDE_CODE_SESSION_ID"] = hook_session  # what the SKILL reads
         chan = "U1,U2"
         recs = [
             _bounced(hook_session, chan, self._DRAFT, off=0),
-            _counseled(self._skill_session_id(), chan, _sha(self._DRAFT), off=30),
+            _counseled_via_cli(hook_session, chan, self._DRAFT, off=30),
             _restaged(hook_session, chan, self._DRAFT + " (revised)", off=600),
         ]
         pair, pairs = self._pair_for(recs, hook_session, chan)
@@ -128,11 +124,10 @@ class TestJoinKeySourceEquivalence(unittest.TestCase):
         names; it also catches a mutation that joined on channel_id alone (which
         would wrongly label this COUNSELED)."""
         hook_session = "sess-uuid-abc123"
-        os.environ["CLAUDE_CODE_SESSION_ID"] = "sess-uuid-DIFFERENT"
         chan = "U1,U2"
         recs = [
             _bounced(hook_session, chan, self._DRAFT, off=0),
-            _counseled(self._skill_session_id(), chan, _sha(self._DRAFT), off=30),
+            _counseled_via_cli("sess-uuid-DIFFERENT", chan, self._DRAFT, off=30),
             _restaged(hook_session, chan, self._DRAFT + " x", off=600),
         ]
         pair, pairs = self._pair_for(recs, hook_session, chan)
