@@ -28,7 +28,7 @@ From the `junto` registry entry, load and honor:
 ## Default roster: practical, question-driven
 
 `junto` defaults to a **practical** roster. Per the registry's
-`practical_selection`, select advisors from `claude/agents/` that aid
+`practical_selection`, select advisors from `jixia/advisors/` that aid
 improvement practice, mutual aid, and civic artifact production. Do **not**
 convene historical representatives by default.
 

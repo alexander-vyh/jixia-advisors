@@ -219,6 +219,7 @@ class TestRosterOverrideIsDistinct(AdviseFullTestCase):
         self.assertEqual(rec["selected_model"], "yushitai")
         self.assertEqual(rec["recommended_model"], "yushitai")
         self.assertEqual(rec["roster"], "practical", "the overridden roster is recorded")
+        self.assertEqual(rec["dissenter"], "management-philosophizer")
         self.assertTrue(plan["is_override"], "a roster override is not an accept")
         self.assertEqual(af.is_override(rec), True)
 
@@ -242,10 +243,9 @@ class TestAgentOverrideKeepsADissenter(AdviseFullTestCase):
         self.assertTrue(plan["record"]["dissenter"])
 
     def test_invalid_swap_reseats_the_default(self):
-        plan = af.resolve_selection(AUDIT_DRAFT, dissent_occupant="council-of-elrond")
-        self.assertNotEqual(plan["dissenter"], "council-of-elrond")
-        self.assertEqual(plan["dissenter"], YUSHITAI_NATIVE_DISSENTER,
-                         "an unresolvable swap reinstates the native default")
+        plan = af.resolve_selection(AUDIT_DRAFT, dissent_occupant="ephialtean-power-limiter")
+        self.assertTrue(plan["reinstated"])
+        self.assertEqual(plan["record"]["dissenter"], YUSHITAI_NATIVE_DISSENTER)
 
 
 class TestFallbackMenuDegrades(AdviseFullTestCase):
@@ -268,7 +268,7 @@ class TestDissentDegradedFlagged(AdviseFullTestCase):
     """Classifier runs but dissent seating fails: never a decorative seat; degradation flagged."""
 
     def test_seat_failure_flags_degraded_and_keeps_a_real_dissenter(self):
-        def boom(model, customization=None):
+        def boom(model, customization=None, *, roster=None):
             raise RuntimeError("dissent module is broken")
 
         ds.seat_dissenter = boom
@@ -284,7 +284,7 @@ class TestDissentDegradedFlagged(AdviseFullTestCase):
     def test_degraded_accept_is_not_miscounted_as_an_agent_override(self):
         # The model was accepted; the seat degraded due to a SYSTEM fault (not a user
         # swap). is_override must not read the fallback counter-lens as an override.
-        def boom(model, customization=None):
+        def boom(model, customization=None, *, roster=None):
             raise RuntimeError("dissent module is broken")
 
         ds.seat_dissenter = boom

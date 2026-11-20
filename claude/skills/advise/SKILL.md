@@ -51,7 +51,7 @@ except Exception as e:
                       "reason": "advise_autopick unavailable: %s" % e}))
     sys.exit(0)
 plan = ap.plan_run(draft, session_id=session_id, channel_id=channel_id)
-ap.append_record(plan["record"])   # the auto-pick record — recommended==selected (an accept)
+ap.append_record(plan["record"], os.path.expanduser("~/.claude/jixia/counsel-log.jsonl"))
 print(json.dumps({
     "model": plan["model"], "roster": plan["roster"], "confidence": plan["confidence"],
     "dissenter": plan["dissenter"], "mandatory": plan["mandatory"],
@@ -68,8 +68,8 @@ the dissenter up front is required (mandated-dissent `dissenter-named-on-entry`)
 dissent is a structural feature of the deliberation, not noise.
 
 **Explicit override** — if the invocation is `/advise <agent-name>: <question>`, the
-named agent is the primary (verify it resolves to a real file in `claude/agents/` or
-`~/.claude/agents/`); still seat a dissenter and log the routed record.
+named agent is the primary. Check `~/.claude/jixia/advisors/` for a bundled advisor
+or `~/.claude/agents/` for an explicitly named host agent. Still seat a dissenter and log the routed record.
 
 ## 2. Dispatch on the VERBATIM draft
 

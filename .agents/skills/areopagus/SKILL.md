@@ -28,10 +28,10 @@ Default is **historical**: load **only** this method's reps from
 former-archon councillor, homicide juror, power limiter), lazily and
 method-scoped. Never load another method's reps. These are source-backed review
 lenses, not impersonations of the historical council. You may add
-question-relevant `claude/agents/` advisors when a practical lens helps.
+question-relevant `jixia/advisors/` advisors when a practical lens helps.
 
 **Override — practical-only:** if the user asks for a practical-only roster,
-skip the historical reps and use question-driven `claude/agents/` advisors
+skip the historical reps and use question-driven `jixia/advisors/` advisors
 instead, loading no reps. The override changes the roster only; the registry's
 phases, fields, verb field, gate, and refusal are unchanged — this stays an
 adjudicative review ending in a verdict.

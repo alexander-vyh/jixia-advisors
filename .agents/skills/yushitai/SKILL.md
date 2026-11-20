@@ -29,11 +29,11 @@ Default is **historical**: load **only** this method's reps from
 investigating censor, circuit-inspection censor, discipline-impeachment censor),
 lazily and method-scoped. Never load another method's reps. These are
 source-backed inspection lenses, not impersonations of the imperial Censorate.
-You may add question-relevant `claude/agents/` advisors when a practical lens
+You may add question-relevant `jixia/advisors/` advisors when a practical lens
 helps.
 
 **Override — practical-only:** if the user asks for a practical-only roster,
-skip the historical reps and use question-driven `claude/agents/` advisors
+skip the historical reps and use question-driven `jixia/advisors/` advisors
 instead, loading no reps. The override changes the roster only; the registry's
 phases, fields, verb field, gate, and refusal are unchanged — this stays an
 inspection-and-accountability pass ending in a corrective action.

@@ -104,6 +104,7 @@ def assert_well_formed(testcase, result, draft):
         % (result["roster"], ROSTER_BY_MODEL[result["model"]], result["model"]),
     )
     testcase.assertIn(result["roster"], LEGAL_ROSTERS)
+    testcase.assertEqual(result["dissent_seat"], _REGISTRY[result["model"]].get("historical_dissenter"))
     testcase.assertIsInstance(result["confidence"], int, "confidence must be an int margin")
     testcase.assertGreaterEqual(result["confidence"], 0, "confidence (margin) must be >= 0")
 

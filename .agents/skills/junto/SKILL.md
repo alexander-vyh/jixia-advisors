@@ -22,7 +22,7 @@ order), `output_fields`, `verb_field` (`experiment_or_commitment`),
 
 ## Roster
 
-Default is **practical**: select advisors from `claude/agents/` that aid
+Default is **practical**: select advisors from `jixia/advisors/` that aid
 improvement practice, mutual aid, and civic artifact production. No historical
 reps by default.
 

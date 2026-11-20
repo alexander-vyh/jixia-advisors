@@ -29,7 +29,7 @@ From the `seven-sages` registry entry, load and honor:
 
 `seven-sages` defaults to a **practical** roster. Per the registry's
 `practical_selection`, cap active voices at seven and draw the smallest useful
-set from `claude/agents/` by relevance to the planning question. Do **not**
+set from `jixia/advisors/` by relevance to the planning question. Do **not**
 convene historical representatives by default.
 
 ## Roster override — explicit historical activation

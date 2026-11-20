@@ -67,7 +67,7 @@ method's reps.
 Install or verification scripts SHALL fail if command wrappers, Codex skill
 entries, registry methods, advisor files, or historical source notes are out of
 sync. Advisor and rep-module resolution MUST check the **repo** paths
-(`claude/agents/` and the in-repo rep module bodies), NOT the installed
+(`jixia/advisors/` and the in-repo rep module bodies), NOT the installed
 `~/.claude/agents/` symlinks, so a fresh checkout / CI validates without an install
 step. The validator SHALL be runnable without network access. As the drift guard
 for the registry↔README↔wrappers sync surface, the validator SHALL also assert each

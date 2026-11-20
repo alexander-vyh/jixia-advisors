@@ -1,0 +1,4 @@
+# Copies of jixia/ written by bin/build-plugin; collapsed in GitHub diffs.
+plugins/jixia-advisors/.claude-plugin/plugin.json linguist-generated
+plugins/jixia-advisors/agents/** linguist-generated
+plugins/jixia-advisors/skills/advise/jixia/** linguist-generated

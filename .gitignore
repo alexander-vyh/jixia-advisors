@@ -15,7 +15,7 @@ __pycache__/
 # Agent runtime artifacts (hook-required derived copies; not authoritative)
 .agent/
 
-# Machine-local Claude Code config/runtime (shared assets live under claude/, no dot)
+# Machine-local Claude Code config; shared advisors and routing live under jixia/
 .claude/
 
 # Serena LSP cache (per-machine)
@@ -25,3 +25,6 @@ __pycache__/
 .beads/.gate-signal.jsonl
 # bd worktree
 .worktrees/
+
+# Plugin ZIP for workspace uploads (bin/build-plugin)
+/dist/

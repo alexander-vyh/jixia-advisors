@@ -68,4 +68,4 @@ representative — never a placeholder.
 #### Scenario: practical method uses a real counter-lens
 
 - **WHEN** an everyday practical-roster model is convened
-- **THEN** the dissent seat resolves to a real advisor file under `claude/agents/`
+- **THEN** the dissent seat resolves to a real advisor file under `jixia/advisors/`

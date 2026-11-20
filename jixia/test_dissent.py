@@ -17,7 +17,7 @@ Function: seat_dissenter(model: str, customization: dict | None = None) -> dict
 Returns, for EVERY model, ALWAYS exactly one dissenter:
     {
       "model":       <the model id>,
-      "occupant":    <a REAL rep id (historical) or claude/agents/ advisor (practical)>,
+      "occupant":    <a REAL rep id (historical) or jixia/advisors/ advisor (practical)>,
       "kind":        "native" | "counter-lens" | "custom",
       "prompt":      <str — the low-sycophancy directives>,
       "mandatory":   True,                # the seat can never be removed
@@ -30,7 +30,7 @@ Invariants (mandated-dissent spec):
   - dissent-prompt-is-low-sycophancy: the prompt mandates counter-argument, resisting
     agreement, and not softening in later rounds.
   - dissent-resolves-to-a-real-occupant: historical -> the method's native rep (a real
-    jixia/reps/.../*.md); practical -> a real claude/agents/*.md. NEVER a placeholder.
+    jixia/reps/.../*.md); practical -> a real jixia/advisors/*.md. NEVER a placeholder.
     An invalid swap target re-seats the default rather than seating a fake.
 """
 
@@ -41,7 +41,7 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
 REGISTRY_PATH = os.path.join(HERE, "registry.json")
-AGENTS_DIR = os.path.join(REPO_ROOT, "claude", "agents")
+AGENTS_DIR = os.path.join(HERE, "advisors")
 
 # --- Independent source of truth: registry + agent files on disk, NOT dissent.py ---
 with open(REGISTRY_PATH, encoding="utf-8") as _f:
@@ -57,7 +57,7 @@ REAL_REP_IDS = {
         if os.path.exists(os.path.join(REPO_ROOT, r["module"]))}
     for m in _METHODS
 }
-# Real practical advisor names = claude/agents/*.md stems.
+# Real practical advisor names = jixia/advisors/*.md stems.
 REAL_AGENTS = {f[:-3] for f in os.listdir(AGENTS_DIR) if f.endswith(".md")}
 
 PLACEHOLDER_TOKENS = {"", "tbd", "n/a", "placeholder", "dissenter", "none", "todo"}
@@ -132,7 +132,7 @@ class TestResolvesToRealOccupant(DissentTestCase):
                 self.assertEqual(r.get("kind"), "counter-lens")
                 self.assertIn(
                     r["occupant"], REAL_AGENTS,
-                    "%s counter-lens must be a real claude/agents/ advisor" % model,
+                    "%s counter-lens must be a real jixia/advisors/ advisor" % model,
                 )
 
 
@@ -184,47 +184,28 @@ class TestLowSycophancyPrompt(DissentTestCase):
                 self.assertIn("soften", prompt, "must direct not softening in later rounds")
 
 
-class TestInstalledLayoutAgentResolution(DissentTestCase):
-    """emp.6 handoff: dissent must resolve the advisor pool in BOTH the repo checkout and
-    the INSTALL.sh layout. Installed, dissent.py lives at ~/.claude/jixia/dissent.py, so the
-    repo-relative guess (~/.claude/claude/agents) does NOT exist — the pool is ~/.claude/agents.
-    The custom-swap path (occupant_resolves) is the first real consumer, so it must work there."""
+class TestBundledAdvisorResolution(DissentTestCase):
+    """The router reads the same module-relative pool in every distribution."""
 
-    def test_resolver_prefers_repo_layout_when_present(self):
-        import tempfile
-        with tempfile.TemporaryDirectory() as root:
-            os.makedirs(os.path.join(root, "claude", "agents"))
-            resolved = ds._resolve_agents_dir(repo_root=root, home="/nonexistent-home")
-            self.assertEqual(resolved, os.path.join(root, "claude", "agents"))
+    def test_checkout_uses_its_own_advisors(self):
+        self.assertEqual(ds._AGENTS_DIR, AGENTS_DIR)
 
-    def test_resolver_falls_to_installed_layout_when_repo_layout_absent(self):
-        # Simulate the installed layout: repo-relative dir absent, ~/.claude/agents present.
-        import tempfile
-        with tempfile.TemporaryDirectory() as home:
-            installed = os.path.join(home, ".claude", "agents")
-            os.makedirs(installed)
-            fake_repo_root = os.path.join(home, ".claude")  # == REPO_ROOT when installed
-            resolved = ds._resolve_agents_dir(repo_root=fake_repo_root, home=home)
-            self.assertEqual(resolved, installed,
-                             "installed layout must resolve to ~/.claude/agents, "
-                             "not the non-existent ~/.claude/claude/agents")
-
-    def test_occupant_resolves_against_the_installed_pool(self):
-        # Point the module at a simulated installed pool and confirm a swap resolves
-        # against it (the custom-swap path emp.6's override feature exercises).
+    def test_occupant_resolves_only_real_files_in_the_pool(self):
         import tempfile
         with tempfile.TemporaryDirectory() as pool:
             with open(os.path.join(pool, "some-installed-advisor.md"), "w") as f:
                 f.write("# advisor\n")
+            os.mkdir(os.path.join(pool, "not-a-file.md"))
             saved = ds._AGENTS_DIR
             try:
                 ds._AGENTS_DIR = pool
-                self.assertTrue(ds.occupant_resolves("some-installed-advisor"))
-                self.assertFalse(ds.occupant_resolves("not-a-real-advisor"))
+                self.assertTrue(ds.occupant_resolves("some-installed-advisor", "jixia", "practical"))
+                self.assertFalse(ds.occupant_resolves("not-a-file", "jixia", "practical"))
+                self.assertFalse(ds.occupant_resolves("not-a-real-advisor", "jixia", "practical"))
             finally:
                 ds._AGENTS_DIR = saved
 
-    def test_missing_pool_in_both_layouts_does_not_crash(self):
+    def test_missing_bundled_pool_does_not_crash(self):
         saved = ds._AGENTS_DIR
         try:
             ds._AGENTS_DIR = "/nonexistent/agents/dir"

@@ -316,6 +316,53 @@ def test_canonical_product_verifier_enables_the_live_fail_closed_oracle():
     assert "jixia/test_product_surface.py" in verifier
 
 
+def test_claude_installer_migrates_owned_links_and_keeps_the_pool_isolated(tmp_path):
+    host = tmp_path / ".claude"
+    named = host / "agents"
+    named.mkdir(parents=True)
+    legacy = named / "ceo-advisor.md"
+    old_target = ROOT / "claude" / "agents" / legacy.name
+    personal = named / "my-private-agent.md"
+    personal.write_text("not part of Jixia", encoding="utf-8")
+    settings = host / "settings.json"
+    settings.write_text('{"note": "café — keep…"}\n', encoding="utf-8")
+    env = {**os.environ, "HOME": str(tmp_path), "CLAUDE_DIR": str(host)}
+
+    def install(*args):
+        subprocess.run(["bash", str(INSTALLER), *args], env=env, check=True)
+
+    # An old install can be removed directly, even with a now-dangling link.
+    legacy.symlink_to(old_target)
+    install("--uninstall")
+    assert not legacy.is_symlink()
+
+    legacy.symlink_to(old_target)
+    install()
+    install()
+    assert '"café — keep…"' in settings.read_text(encoding="utf-8")
+    pool = ROOT / "jixia" / "advisors"
+    installed = host / "jixia"
+    for definition in pool.glob("*.md"):
+        assert (named / definition.name).samefile(definition)
+    assert (installed / "advisors").samefile(pool)
+    subprocess.run(
+        [sys.executable, "-I", "-c",
+         "import sys; sys.path.insert(0, sys.argv[1]); import dissent; "
+         "assert dissent.occupant_resolves('ceo-advisor', 'jixia', 'practical'); "
+         "assert dissent.occupant_resolves('ephialtean-power-limiter', 'areopagus', 'historical'); "
+         "assert not dissent.occupant_resolves('my-private-agent', 'jixia', 'practical')", str(installed)],
+        env=env, cwd=tmp_path, check=True,
+    )
+
+    # Uninstall must not remove a named agent the user has since repointed.
+    legacy.unlink()
+    legacy.symlink_to(personal)
+    install("--uninstall")
+    assert legacy.samefile(personal)
+    assert {p.name for p in named.iterdir()} == {legacy.name, personal.name}
+    assert not (installed / "advisors").is_symlink()
+
+
 def test_product_surfaces_match_the_executable_contract():
     readme = README.read_text(encoding="utf-8")
     tour = TOUR.read_text(encoding="utf-8")
@@ -323,7 +370,7 @@ def test_product_surfaces_match_the_executable_contract():
     installer = INSTALLER.read_text(encoding="utf-8")
 
     assert len(registry["methods"]) == 6
-    assert len(list((ROOT / "claude" / "agents").glob("*.md"))) == 20
+    assert len(list((ROOT / "jixia" / "advisors").glob("*.md"))) == 20
     assert "CLAUDE_DIR" in installer
     assert "CODEX" not in installer
     assert "20 advisor lenses" in readme
@@ -336,7 +383,7 @@ def test_product_surfaces_match_the_executable_contract():
 def test_public_roster_matches_the_advisor_files_and_model_policy():
     roster = ROSTER.read_text(encoding="utf-8")
     documented = set(re.findall(r"^- `([^`]+)` —", roster, re.MULTILINE))
-    agent_files = list((ROOT / "claude" / "agents").glob("*.md"))
+    agent_files = list((ROOT / "jixia" / "advisors").glob("*.md"))
     actual = {path.stem for path in agent_files}
     assert documented == actual
 

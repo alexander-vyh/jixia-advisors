@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""Refresh the plugin's copies of the shared core, then zip the plugin for upload (stdlib only).
+
+Hand-written in plugins/jixia-advisors/: plugin.json, README.md, LICENSE, skills/advise/SKILL.md.
+Generated from jixia/ (never edit): .claude-plugin/plugin.json, agents/, skills/advise/jixia/.
+Hosts drop symlinks when installing, so the plugin carries real copies.
+`--check` lists stale generated files without writing anything.
+"""
+import json
+import shutil
+import sys
+from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
+
+ROOT = Path(__file__).resolve().parents[1]
+PLUGIN = ROOT / "plugins/jixia-advisors"
+GENERATED = (".claude-plugin", "agents", "skills/advise/jixia")
+MODULES = ("counsel.py", "advise_full.py", "advise_autopick.py", "routing_classifier.py", "dissent.py", "registry.json")
+
+
+def generated():
+    """Map each generated path, relative to the plugin, to its bytes."""
+    core = {"jixia/" + module: (ROOT / "jixia" / module).read_bytes() for module in MODULES}
+    for method in json.loads(core["jixia/registry.json"])["methods"].values():
+        for rep in method["historical_roster"]:
+            core[rep["module"]] = (ROOT / rep["module"]).read_bytes()
+    files = {"skills/advise/" + path: data for path, data in core.items()}
+    advisors = sorted((ROOT / "jixia/advisors").glob("*.md"))
+    if not advisors:
+        raise SystemExit("No advisor definitions found in jixia/advisors")
+    for path in advisors:
+        files["agents/" + path.name] = files["skills/advise/jixia/advisors/" + path.name] = path.read_bytes()
+    manifest = json.loads((PLUGIN / "plugin.json").read_bytes())
+    claude = {key: manifest[key] for key in ("name", "version", "description", "author", "homepage")}
+    files[".claude-plugin/plugin.json"] = (json.dumps(claude, indent=2) + "\n").encode()
+    return files
+
+
+def main():
+    want = generated()
+    if sys.argv[1:] == ["--check"]:
+        have = {path.relative_to(PLUGIN).as_posix(): path.read_bytes() for folder in GENERATED
+                for path in (PLUGIN / folder).rglob("*") if path.suffix in (".md", ".py", ".json")}
+        stale = sorted(path for path in want.keys() | have.keys() if want.get(path) != have.get(path))
+        if stale:
+            raise SystemExit("Stale plugin files; run ./bin/build-plugin:\n  " + "\n  ".join(stale))
+        return
+    for folder in GENERATED:
+        shutil.rmtree(PLUGIN / folder, ignore_errors=True)
+    for path, data in want.items():
+        (PLUGIN / path).parent.mkdir(parents=True, exist_ok=True)
+        (PLUGIN / path).write_bytes(data)
+    out = ROOT / "dist/jixia-advisors.zip"
+    out.parent.mkdir(exist_ok=True)
+    with ZipFile(out, "w") as archive:
+        for path in sorted(PLUGIN.rglob("*")):
+            if path.is_file() and path.name != ".DS_Store":
+                member = ZipInfo(path.relative_to(PLUGIN).as_posix())  # Fixed timestamp; no local metadata.
+                member.create_system = 3
+                member.external_attr = 0o100644 << 16
+                archive.writestr(member, path.read_bytes(), compress_type=ZIP_DEFLATED)
+    print(PLUGIN)
+    print(out)
+
+
+if __name__ == "__main__":
+    main()
