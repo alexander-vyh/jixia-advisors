@@ -28,11 +28,11 @@ Default is **historical**: load **only** this method's reps from
 mimamsaka hermeneutician, dharmasastra reciter, narada procedure exemplar),
 lazily and method-scoped. Never load another method's reps. These are
 source-constrained interpretive lenses, not impersonations of an actual council.
-You may add question-relevant `claude/agents/` advisors when a practical lens
+You may add question-relevant `jixia/advisors/` advisors when a practical lens
 helps.
 
 **Override — practical-only:** if the user asks for a practical-only roster,
-skip the historical reps and use question-driven `claude/agents/` advisors
+skip the historical reps and use question-driven `jixia/advisors/` advisors
 instead, loading no reps. The override changes the roster only; the registry's
 phases, fields, verb field, gate, and refusal are unchanged — this stays an
 authority-and-role settlement.

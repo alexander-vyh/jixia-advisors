@@ -50,7 +50,7 @@ QUALIFY_MARKERS = [
 ]
 
 # The routed primary advisor for the org-dynamics-sensitive outward-message
-# type. A real deployed agent file in claude/agents/.
+# type. A real deployed agent file in jixia/advisors/.
 ROUTED_PRIMARY_AGENT = "behavioral-psychologist"
 
 # Default user-level paths (overridable for tests).

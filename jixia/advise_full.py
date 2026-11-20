@@ -122,21 +122,8 @@ def _default_dissenter(model):
     the dissent module is unavailable. Used to decode roster/agent overrides."""
     try:
         import dissent
-        occupant, _kind = dissent.default_occupant(model)
+        occupant, _kind = dissent.default_occupant(model, _default_roster(model))
         return occupant
-    except Exception:
-        return None
-
-
-def _seat_safe(model, customization=None):
-    """Seat the dissenter for model with an optional customization, or None on failure.
-
-    A dissent-module fault must not take /advise-full down — the caller then names the
-    fixed counter-lens and flags dissent_degraded, mirroring advise_autopick.
-    """
-    try:
-        import dissent
-        return dissent.seat_dissenter(model, customization)
     except Exception:
         return None
 
@@ -222,7 +209,7 @@ def agent_options(model, roster=None):
 
 
 def _ap_real_agents():
-    """The advisor pool, via dissent's (layout-aware) resolver; empty if unavailable."""
+    """The bundled advisor pool, or an empty set if unavailable."""
     try:
         import dissent
         return dissent._real_agents()
@@ -276,6 +263,8 @@ def resolve_selection(draft, model=None, roster=None, agents=None,
     else:
         selected = menu["selected_model"]
     sel_roster = roster or _default_roster(selected)
+    if roster and roster not in (available := roster_options(selected)):
+        raise ValueError(f"{selected} does not support {roster!r}; choose {', '.join(available)}.")
 
     customization = {}
     if remove_dissent:
@@ -284,7 +273,7 @@ def resolve_selection(draft, model=None, roster=None, agents=None,
         customization["occupant"] = dissent_occupant
 
     dissent_degraded = menu["dissent_degraded"]
-    seat = _seat_safe(selected, customization or None)
+    seat = _ap._seat_safe(selected, sel_roster, customization)
     if seat:
         dissenter = seat["occupant"]
         dissent_prompt = seat["prompt"]

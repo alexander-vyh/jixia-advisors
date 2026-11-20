@@ -14,11 +14,11 @@ Checks (each error string NAMES the offending method or source so callers can lo
   S1 - every registry method has a Claude command wrapper claude/commands/<method>.md
   S2 - every registry method has a Codex skill .agents/skills/<method>/SKILL.md
   S3 - each Claude wrapper DELEGATES to the registry (references registry.json) and does
-       NOT embed a hand-maintained roster (no copied list of claude/agents advisor names)
+       NOT embed a hand-maintained roster (no copied list of jixia/advisors advisor names)
   S4 - each Codex skill DELEGATES to the registry (references registry.json)
   S5 - each Codex skill's frontmatter `name:` equals the method id it serves
   S6 - every advisor / rep a surface references resolves in the REPO:
-       claude/agents/<name>.md must exist; any jixia/reps/<...>.md path must exist
+       jixia/advisors/<name>.md must exist; any jixia/reps/<...>.md path must exist
   S7 - drift guard: every registry historical-rep cites a source present in
        docs/historical-council-sources/README.md (matched on source_url, the exact
        provenance anchor both artifacts share)
@@ -36,8 +36,8 @@ REQUIRED_METHODS = {
     "jixia", "seven-sages", "areopagus", "junto", "parishad", "yushitai",
 }
 
-# Advisor names referenced explicitly as claude/agents/<name>.md inside a surface file.
-_ADVISOR_REF = re.compile(r"claude/agents/([A-Za-z0-9_-]+)\.md")
+# Advisor names referenced explicitly as jixia/advisors/<name>.md inside a surface file.
+_ADVISOR_REF = re.compile(r"jixia/advisors/([A-Za-z0-9_-]+)\.md")
 # Rep module paths referenced explicitly as jixia/reps/<...>.md inside a surface file.
 _REP_REF = re.compile(r"jixia/reps/[A-Za-z0-9_./-]+\.md")
 # A bare advisor-directory mention (jixia/reps/<method>/) is a roster *pointer*, not a
@@ -75,7 +75,7 @@ def validate(registry, repo_root):
     errors = []
     methods = registry.get("methods", {})
 
-    agents_dir = os.path.join(repo_root, "claude", "agents")
+    agents_dir = os.path.join(repo_root, "jixia", "advisors")
     # Set of advisor ids that actually resolve in the repo, for the embedded-roster guard.
     repo_advisors = set()
     if os.path.isdir(agents_dir):
@@ -157,7 +157,7 @@ def validate(registry, repo_root):
                 if not os.path.isfile(advisor_path):
                     errors.append(
                         "S6: %s surface for method %r references advisor %r which "
-                        "does not resolve to claude/agents/%s.md"
+                        "does not resolve to jixia/advisors/%s.md"
                         % (surf_name, name, advisor, advisor)
                     )
             for rep_path in sorted(set(_REP_REF.findall(surf_text))):

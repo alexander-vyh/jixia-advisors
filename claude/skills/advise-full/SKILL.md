@@ -112,7 +112,7 @@ plan = af.resolve_selection(
     remove_dissent=remove_dissent, agents=agents,
     session_id=session_id, channel_id=channel_id,
 )
-af.append_record(plan["record"])   # entry="advise-full"; recommended==selected iff an accept
+af.append_record(plan["record"], os.path.expanduser("~/.claude/jixia/counsel-log.jsonl"))
 print(json.dumps({
     "model": plan["model"], "roster": plan["roster"], "dissenter": plan["dissenter"],
     "mandatory": plan["mandatory"], "is_override": plan["is_override"],

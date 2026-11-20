@@ -1,0 +1,18 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "jixia-advisors",
+  "version": "1.0.0",
+  "description": "Choose an advisory method and a small roster, hear the counter-case, and leave with a concrete next action.",
+  "author": { "name": "Jixia Advisors" },
+  "homepage": "https://github.com/alexander-vyh/jixia-advisors",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Jixia Advisors",
+        "shortDescription": "Get specialist counsel and a dissenting view on a decision or draft.",
+        "category": "Productivity",
+        "defaultPrompt": ["Use Jixia to advise me on this decision."]
+      }
+    }
+  }
+}

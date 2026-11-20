@@ -10,7 +10,7 @@ openspec/changes/advisor-convening-router/specs/mandated-dissent/spec.md:
     (research: a council's dominant failure is sycophantic agreement-collapse). Any real
     occupant becomes a dissenter by holding this prompt.
   - The occupant resolves to a REAL source-backed rep (historical) or a real
-    claude/agents/ advisor (practical) — never a placeholder. An invalid swap target
+    jixia/advisors/ advisor (practical) — never a placeholder. An invalid swap target
     re-seats the default rather than seating a fake.
 
 Stdlib-only; resolves the registry + agent files relative to this file.
@@ -22,43 +22,12 @@ import os
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
 _REGISTRY_PATH = os.path.join(HERE, "registry.json")
-
-
-def _candidate_agents_dirs(repo_root=None, home=None):
-    """Where the advisor pool can live, in priority order.
-
-    Two supported layouts, and the module runs from EITHER:
-      - repo checkout:   <repo>/claude/agents/          (dissent.py at <repo>/jixia/)
-      - INSTALL.sh dest: ~/.claude/agents/              (dissent.py symlinked to
-                         ~/.claude/jixia/dissent.py, so REPO_ROOT is ~/.claude and the
-                         repo-relative guess resolves to the non-existent
-                         ~/.claude/claude/agents — the installed pool is one level up)
-    """
-    repo_root = repo_root if repo_root is not None else REPO_ROOT
-    home = home if home is not None else os.path.expanduser("~")
-    return [
-        os.path.join(repo_root, "claude", "agents"),   # repo checkout layout
-        os.path.join(home, ".claude", "agents"),       # installed (INSTALL.sh) layout
-    ]
-
-
-def _resolve_agents_dir(repo_root=None, home=None):
-    """The first candidate agents dir that exists; else the repo-relative default.
-
-    Falling back to the repo-relative path when NEITHER exists keeps the old behavior
-    for a fresh/odd checkout (_real_agents tolerates a missing dir).
-    """
-    candidates = _candidate_agents_dirs(repo_root, home)
-    for c in candidates:
-        if os.path.isdir(c):
-            return c
-    return candidates[0]
-
-
-_AGENTS_DIR = _resolve_agents_dir()
+_AGENTS_DIR = os.path.join(HERE, "advisors")
 
 with open(_REGISTRY_PATH, encoding="utf-8") as _f:
-    _METHODS = json.load(_f)["methods"]
+    _registry = json.load(_f)
+_METHODS = _registry["methods"]
+DEFAULT_COUNTER_LENS = _registry["practical_dissenter"]
 
 # The low-sycophancy directive set — the seat's defining content. It MUST instruct the
 # occupant to argue the counter-case, resist agreement, and not soften in later rounds.
@@ -72,81 +41,54 @@ DISSENT_DIRECTIVES = (
     "to be agreeable."
 )
 
-# Historical methods -> their native dissent instance (a rep id in the method's
-# registry historical_roster). areopagus + yushitai are spec-pinned; parishad has no
-# spec-named native dissenter — narada-procedure-exemplar is a FLAGGED default (pleading
-# is the most adversarial of parishad's reps). Owner-correctable; see the brief.
-NATIVE_DISSENTER = {
-    "areopagus": "ephialtean-power-limiter",          # spec-pinned (Ephialtean power-limiter)
-    "yushitai": "discipline-impeachment-censor",      # spec-pinned (remonstrance/impeachment)
-    "parishad": "narada-procedure-exemplar",          # FLAGGED default — owner-correctable
-}
-
-# Practical methods -> default counter-lens advisor (a real claude/agents/ file). The
-# low-sycophancy prompt is what enforces dissent, so the holder is swappable; this is a
-# FLAGGED default. The per-question counter-lens selection is the method's runtime job.
-DEFAULT_COUNTER_LENS = "management-philosophizer"
-
-
-def _real_rep_ids():
-    """Rep ids across all methods whose module file actually exists on disk."""
-    ids = set()
-    for info in _METHODS.values():
-        for rep in info.get("historical_roster", []):
-            if os.path.exists(os.path.join(REPO_ROOT, rep["module"])):
-                ids.add(rep["id"])
-    return ids
-
 
 def _real_agents():
     try:
-        return {f[:-3] for f in os.listdir(_AGENTS_DIR) if f.endswith(".md")}
+        with os.scandir(_AGENTS_DIR) as files:
+            return {f.name[:-3] for f in files if f.name.endswith(".md") and f.is_file()}
     except FileNotFoundError:
-        # Neither layout resolved to an existing dir — no advisor pool visible. Return
-        # empty rather than raise; an unresolvable swap then re-seats the default.
+        # No bundled pool is visible; never substitute the host's personal collection.
         return set()
 
 
-def occupant_resolves(occupant):
-    """True iff occupant is a real source-backed rep or a real advisor file."""
-    if not occupant or not isinstance(occupant, str):
+def occupant_resolves(occupant, model, roster):
+    """Bundled advisors can sit on any roster; reps only on their own historical roster."""
+    if not isinstance(occupant, str) or not occupant:
         return False
-    return occupant in _real_rep_ids() or occupant in _real_agents()
+    if roster == "historical":
+        for rep in _METHODS[model]["historical_roster"]:
+            if rep["id"] == occupant:
+                return os.path.isfile(os.path.join(REPO_ROOT, rep["module"]))
+    return occupant in _real_agents()
 
 
-def default_occupant(model):
-    """The default dissenter for a model: native rep (historical) or counter-lens (practical)."""
-    if _METHODS[model]["default_roster_policy"] == "historical":
-        return NATIVE_DISSENTER[model], "native"
+def default_occupant(model, roster):
+    """Return the default seat for the selected roster."""
+    if roster == "historical":
+        return _METHODS[model]["historical_dissenter"], "native"
     return DEFAULT_COUNTER_LENS, "counter-lens"
 
 
-def seat_dissenter(model, customization=None):
+def seat_dissenter(model, customization=None, *, roster=None):
     """Seat exactly one dissenter for a convening run. Always returns a real dissenter.
 
     customization (optional dict):
       {"remove": True}          -> ignored; the default is re-seated (reinstated=True)
-      {"occupant": "<name>"}    -> swap WHO, if it resolves to a real rep/agent; an
-                                   unresolvable target re-seats the default (reinstated=True)
+      {"occupant": "<name>"}    -> swap WHO, if eligible for this roster; otherwise
+                                   re-seat the roster default (reinstated=True)
     """
     if model not in _METHODS:
         raise ValueError("unknown convening model: %r" % (model,))
 
-    default, default_kind = default_occupant(model)
-    occupant, kind, reinstated = default, default_kind, False
-
-    if customization:
-        requested = customization.get("occupant")
-        wants_removal = customization.get("remove")
-        if requested and not wants_removal:
-            if occupant_resolves(requested):
-                occupant, kind = requested, "custom"
-            else:
-                # never seat a fake — fall back to the mandatory default
-                reinstated = True
-        elif wants_removal:
-            # the seat is non-removable: re-seat the default
-            reinstated = True
+    roster = roster or _METHODS[model]["default_roster_policy"]
+    occupant, kind = default_occupant(model, roster)
+    change = customization or {}
+    requested = change.get("occupant")
+    reinstated = bool(change.get("remove") or requested)
+    if requested and not change.get("remove") and occupant_resolves(requested, model, roster):
+        occupant, kind, reinstated = requested, "custom", False
+    elif not occupant_resolves(occupant, model, roster):
+        raise ValueError(f"Missing dissent lens {occupant!r} in the installed {roster} roster.")
 
     return {
         "model": model,

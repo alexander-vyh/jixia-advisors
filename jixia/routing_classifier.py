@@ -28,8 +28,6 @@ _REGISTRY_PATH = os.path.join(HERE, "registry.json")
 with open(_REGISTRY_PATH, encoding="utf-8") as _f:
     _METHODS = json.load(_f)["methods"]
 
-_ROSTER_BY_MODEL = {m: _METHODS[m]["default_roster_policy"] for m in _METHODS}
-
 DEFAULT_MODEL = "jixia"  # the adaptive-triage floor; must exist in the registry
 assert DEFAULT_MODEL in _METHODS, "registry is missing the jixia default model"
 
@@ -67,15 +65,6 @@ SPECIALIST_MARKERS = {
     ],
 }
 
-# Brief §0.4 — registry-native dissent seats the classifier populates deterministically.
-# Non-removability / low-sycophancy enforcement and the remaining seats are owned by the
-# mandated-dissent bead; not decided here. Models absent from this map get None.
-_NATIVE_DISSENT_SEAT = {
-    "areopagus": "ephialtean-power-limiter",
-    "yushitai": "discipline-impeachment-censor",
-}
-
-
 def _score(draft_lower, markers):
     """Count distinct markers from one lexicon present in the (lowercased) draft."""
     return sum(1 for marker in markers if marker in draft_lower)
@@ -104,9 +93,10 @@ def classify(draft, signals=None):
     else:
         model = DEFAULT_MODEL  # fail closed to the adaptive default — never guess a specialist
 
+    method = _METHODS[model]
     return {
         "model": model,
-        "roster": _ROSTER_BY_MODEL[model],
+        "roster": method["default_roster_policy"],
         "confidence": margin,
-        "dissent_seat": _NATIVE_DISSENT_SEAT.get(model),
+        "dissent_seat": method.get("historical_dissenter"),
     }

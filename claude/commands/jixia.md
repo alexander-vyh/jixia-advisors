@@ -29,7 +29,7 @@ From the `jixia` registry entry, load and honor:
 
 `jixia` defaults to a **practical** roster. Per the registry's
 `practical_selection`, triage the question and select the smallest useful mix of
-advisors from `claude/agents/` by relevance, adding a counter-lens only when it
+advisors from `jixia/advisors/` by relevance, adding a counter-lens only when it
 materially improves the answer. Do **not** convene historical representatives by
 default.
 

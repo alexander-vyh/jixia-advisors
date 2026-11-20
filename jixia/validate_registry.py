@@ -9,7 +9,7 @@ method or representative) otherwise.
 
 Checks (mutation ids from the oracle brief):
   M1 - exactly the six required method ids, each once (no missing / dup / renamed)
-  M2 - every selectable practical advisor resolves to claude/agents/<name>.md (repo)
+  M2 - every selectable practical advisor resolves to jixia/advisors/<name>.md (repo)
   M3 - every historical rep has full source metadata
   M4 - every method load_policy == "lazy"; every rep is method-scoped (rep.method
        matches its method; default reps belong to a historical-default method)
@@ -34,6 +34,7 @@ Usage:
 import json
 import os
 import sys
+from pathlib import Path
 
 REQUIRED_METHODS = {
     "jixia", "seven-sages", "areopagus", "junto", "parishad", "yushitai",
@@ -65,10 +66,14 @@ def validate(registry, repo_root):
     """Return a list of human-readable error strings (empty list == valid).
 
     Each error string names the offending method (or rep id) so callers can locate
-    the violation. repo_root is the directory that contains claude/agents/ and jixia/.
+    the violation. repo_root is the directory that contains jixia/.
     """
     errors = []
     methods = registry.get("methods", {})
+    advisors = {p.stem for p in Path(repo_root, "jixia", "advisors").glob("*.md") if p.is_file()}
+    practical = registry.get("practical_dissenter")
+    if not isinstance(practical, str) or practical not in advisors:
+        errors.append(f"practical_dissenter {practical!r} is not a bundled advisor")
 
     # --- M1: exactly the six required ids, each once -------------------------
     present = set(methods.keys())
@@ -133,17 +138,21 @@ def validate(registry, repo_root):
 
         # --- M2: practical advisor resolution -------------------------------
         # A method may name advisors via practical_allowlist; any named advisor must
-        # resolve to claude/agents/<name>.md in the repo.
+        # resolve to jixia/advisors/<name>.md in the repo.
         for advisor in m.get("practical_allowlist", []):
-            advisor_path = os.path.join(repo_root, "claude", "agents", advisor + ".md")
-            if not os.path.isfile(advisor_path):
+            if advisor not in advisors:
                 errors.append(
                     "M2: method %r references practical advisor %r which does not "
-                    "resolve to claude/agents/%s.md" % (name, advisor, advisor)
+                    "resolve to jixia/advisors/%s.md" % (name, advisor, advisor)
                 )
 
         # --- representative checks (M3/M4/M6) -------------------------------
         roster = m.get("historical_roster", [])
+        native = m.get("historical_dissenter")
+        if roster and not any(native == rep.get("id") for rep in roster):
+            errors.append(f"{name}: historical_dissenter {native!r} is not in this method's roster")
+        elif not roster and "historical_dissenter" in m:
+            errors.append(f"{name}: historical_dissenter without a historical roster")
 
         # M6: historical-default method must have a non-empty functional roster
         if policy == "historical" and not roster:

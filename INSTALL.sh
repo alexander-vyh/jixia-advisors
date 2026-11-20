@@ -10,12 +10,12 @@
 # it's backed up to <name>.backup-YYYYMMDD-HHMMSS before being symlinked.
 #
 # Installs:
-#   - claude/agents/*.md            -> ~/.claude/agents/        (the advisor pool)
+#   - jixia/advisors/*.md           -> ~/.claude/agents/        (named Claude Code agents)
 #   - claude/skills/advise          -> ~/.claude/skills/advise  (the /advise front door)
 #   - claude/skills/advise-full     -> ~/.claude/skills/advise-full (the menu + override)
 #   - claude/hooks/jixia_send_bounce.py -> ~/.claude/hooks/     (send-bounce hook pair)
 #   - bin/jixia-counsel-report      -> ~/.claude/bin/           (the keep/kill tally)
-#   - jixia/{routing_classifier,dissent,advise_autopick,advise_full}.py + registry.json + reps/
+#   - jixia/{routing_classifier,dissent,advise_autopick,advise_full}.py + registry.json + reps/ + advisors/
 #                                   -> ~/.claude/jixia/          (the /advise[-full] imports)
 #   - ~/.claude/jixia/                                          (counsel-log + bounce-state dir)
 #   - merges claude/settings-hooks.json into ~/.claude/settings.json (Slack staging matchers)
@@ -24,7 +24,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_DIR="${CLAUDE_DIR:-$HOME/.claude}"
-AGENTS_SRC="$REPO_DIR/claude/agents"
+AGENTS_SRC="$REPO_DIR/jixia/advisors"
 AGENTS_DST="$CLAUDE_DIR/agents"
 SETTINGS="$CLAUDE_DIR/settings.json"
 HOOKS_BLOCK="$REPO_DIR/claude/settings-hooks.json"
@@ -35,19 +35,20 @@ UNINSTALL=0
 ts="$(date +%Y%m%d-%H%M%S)"
 n=0
 
-# link_path SRC DST — backup-then-symlink (or remove on uninstall). Increments n.
+# link_path SRC DST [OLD_SRC] — back up and link, or remove our link on uninstall.
 link_path() {
-  local src="$1" dst="$2"
-  [ -e "$src" ] || return 0
+  local src="$1" dst="$2" old_src="${3:-$1}"
 
   if [ "$UNINSTALL" = "1" ]; then
-    if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
+    local target
+    if [ -L "$dst" ] && target="$(readlink "$dst")" && { [ "$target" = "$src" ] || [ "$target" = "$old_src" ]; }; then
       rm "$dst"
       echo "    removed: $dst"
       n=$((n+1))
     fi
     return 0
   fi
+  [ -e "$src" ] || return 0
 
   mkdir -p "$(dirname "$dst")"
   if [ -L "$dst" ]; then
@@ -66,7 +67,9 @@ link_path() {
 mkdir -p "$AGENTS_DST"
 for src in "$AGENTS_SRC"/*.md; do
   [ -f "$src" ] || continue
-  link_path "$src" "$AGENTS_DST/$(basename "$src")"
+  name="$(basename "$src")"
+  # Also recognize our previous source path when uninstalling before a reinstall.
+  link_path "$src" "$AGENTS_DST/$name" "$REPO_DIR/claude/agents/$name"
 done
 
 # --- 2. /advise + /advise-full skills (directory symlinks) ---
@@ -83,12 +86,13 @@ link_path "$REPO_DIR/bin/jixia-counsel-report" "$CLAUDE_DIR/bin/jixia-counsel-re
 # The advise skill's snippet adds ~/.claude/jixia to sys.path and imports
 # advise_autopick, which imports routing_classifier + dissent; each resolves
 # registry.json relative to its own file, so the module + the registry must sit
-# together. reps/ is symlinked so a historical dissent occupant resolves to its real
-# source-backed rep file. (backup-then-symlink + uninstall handled by link_path.)
+# together. Link the two council pools beside them so the shared resolver sees
+# only Jixia's included advisors, not unrelated named agents installed globally.
 for f in routing_classifier.py dissent.py advise_autopick.py advise_full.py registry.json; do
   link_path "$REPO_DIR/jixia/$f" "$CLAUDE_DIR/jixia/$f"
 done
 link_path "$REPO_DIR/jixia/reps" "$CLAUDE_DIR/jixia/reps"
+link_path "$AGENTS_SRC" "$CLAUDE_DIR/jixia/advisors"
 
 # --- 6. runtime state dir (counsel-log + bounce-state live here) ---
 if [ "$UNINSTALL" != "1" ]; then
@@ -150,7 +154,7 @@ if mode == "install":
     if not hooks:
         settings.pop("hooks", None)
     with open(settings_path, "w", encoding="utf-8") as f:
-        json.dump(settings, f, indent=2)
+        json.dump(settings, f, indent=2, ensure_ascii=False)
         f.write("\n")
     print(f"    merge:   Slack staging matchers -> {settings_path}")
     print("    NOTE: the send-bounce hook only fires in sessions where the Slack MCP")
@@ -160,7 +164,7 @@ else:
     if not hooks:
         settings.pop("hooks", None)
     with open(settings_path, "w", encoding="utf-8") as f:
-        json.dump(settings, f, indent=2)
+        json.dump(settings, f, indent=2, ensure_ascii=False)
         f.write("\n")
     print(f"    unmerge: removed Slack staging matchers from {settings_path}")
 PY

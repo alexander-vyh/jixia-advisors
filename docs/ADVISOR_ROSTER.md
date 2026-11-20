@@ -1,8 +1,8 @@
 # Advisor roster
 
-Jixia currently carries 20 personal advisor lenses. They are review stances,
-not claims that a model is a licensed professional or that every lens belongs in
-every consultation.
+The [20 practical advisor definitions](../jixia/advisors/) are shared across
+hosts. They are review stances, not claims that a model is a licensed
+professional or that every lens belongs in every consultation.
 
 ## Management and leadership
 
@@ -65,9 +65,9 @@ current session model: `dashboard-auditor`, `management-philosophizer`,
 `personal-systems-integrator`, `thinking-process-advisor`, `value-translator`,
 `value-creation-advisor`, `capital-allocator`, and `ceo-advisor`.
 
-The other 12 definitions currently request `sonnet` as a cost-and-latency
-choice. Whether that model name is available, and what behavior it provides, is
-controlled by the host rather than Jixia.
+The other 12 definitions currently request `sonnet` for cost and latency when
+installed as named Claude Code agents. In a chat that reads these files as
+review lenses, their frontmatter does not switch the host's model.
 
 Return to [Current surfaces and truthful limits](../README.md#current-surfaces-and-truthful-limits)
 or continue to the [representative product tour](PRODUCT_TOUR.md).

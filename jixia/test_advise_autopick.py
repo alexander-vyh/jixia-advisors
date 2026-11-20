@@ -202,7 +202,7 @@ class TestDissentSeatingFailureIsFlagged(AutoPickTestCase):
     signal AND still names a real counter-lens with a real directive."""
 
     def test_seat_failure_flags_degraded_and_keeps_a_real_dissenter(self):
-        def boom(model, customization=None):
+        def boom(model, customization=None, *, roster=None):
             raise RuntimeError("dissent module is broken")
 
         ds.seat_dissenter = boom

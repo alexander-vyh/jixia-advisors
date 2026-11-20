@@ -23,7 +23,7 @@ order), `output_fields`, `verb_field` (`next_action`), `default_roster_policy`
 ## Roster
 
 Default is **practical**: triage the question and select the smallest useful mix
-of advisors from `claude/agents/` by relevance, adding a counter-lens only when
+of advisors from `jixia/advisors/` by relevance, adding a counter-lens only when
 it materially improves the answer. No historical reps by default.
 
 **Override — historical:** if the user explicitly asks for historical

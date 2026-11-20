@@ -68,6 +68,22 @@ class TestMutations(unittest.TestCase):
         self.assertIn("jixia", joined)
         self.assertIn("nonexistent-advisor", joined)
 
+    def test_default_dissenters_must_resolve_in_the_selected_roster(self):
+        for field, value, method in (
+            ("practical_dissenter", "missing-advisor", None),
+            ("historical_dissenter", None, "areopagus"),
+            ("historical_dissenter", "ephialtean-power-limiter", "yushitai"),
+            ("historical_dissenter", "ephialtean-power-limiter", "jixia"),
+        ):
+            with self.subTest(field=field, method=method):
+                reg = self.copy()
+                target = reg["methods"][method] if method else reg
+                if value is None:
+                    del target[field]
+                else:
+                    target[field] = value
+                assert_rejects_naming(self, reg, method or field)
+
     def test_M3_historical_rep_missing_source_metadata(self):
         reg = self.copy()
         rep = reg["methods"]["areopagus"]["historical_roster"][0]

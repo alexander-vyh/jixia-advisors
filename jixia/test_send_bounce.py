@@ -33,7 +33,7 @@ def _load(rel, name):
 
 sb = _load("claude/hooks/jixia_send_bounce.py", "jixia_send_bounce")
 
-# Real deployed primary agent the denial must name (file exists in claude/agents/).
+# Real deployed primary agent the denial must name (file exists in jixia/advisors/).
 PRIMARY_AGENT = "behavioral-psychologist"
 
 # Constants encoded INDEPENDENTLY of the implementation (per the brief §0b).

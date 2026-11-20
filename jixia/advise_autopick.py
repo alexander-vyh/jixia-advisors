@@ -60,8 +60,6 @@ FALLBACK_DISSENT_DIRECTIVE = (
     "your position in later rounds. You are FOR the user by refusing to be agreeable."
 )
 
-DEFAULT_LOG_PATH = os.path.expanduser("~/.claude/jixia/counsel-log.jsonl")
-
 
 def _now_iso():
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -92,15 +90,15 @@ def _classify_safe(draft, signals):
         return None, True
 
 
-def _seat_safe(model):
-    """Seat the dissenter for model, or None if the dissent module is absent/errors.
+def _seat_safe(model, roster, customization=None):
+    """Seat the dissenter for this roster, or return None if seating fails.
 
     Named on the first turn by the skill. A dissent-module fault must not take
     /advise down either — the caller falls back to naming the counter-lens.
     """
     try:
         import dissent
-        return dissent.seat_dissenter(model)
+        return dissent.seat_dissenter(model, customization, roster=roster)
     except Exception:
         return None
 
@@ -182,7 +180,7 @@ def plan_run(draft, signals=None, session_id=None, channel_id="adhoc"):
         model = result["model"]
         roster = result["roster"]
         confidence = result["confidence"]
-        seat = _seat_safe(model)
+        seat = _seat_safe(model, roster)
         if seat:
             dissenter = seat["occupant"]
             dissent_prompt = seat["prompt"]
@@ -221,16 +219,15 @@ def plan_run(draft, signals=None, session_id=None, channel_id="adhoc"):
     }
 
 
-def append_record(record, log_path=None):
+def append_record(record, log_path):
     """Append one routed record as a JSON line to the counsel log (creating the dir).
 
     Append-only, one object per line — the same JSONL contract the hook + counseled
     record write to. Returns the record for convenience.
     """
-    path = log_path or DEFAULT_LOG_PATH
-    parent = os.path.dirname(path)
+    parent = os.path.dirname(log_path)
     if parent:
         os.makedirs(parent, exist_ok=True)
-    with open(path, "a", encoding="utf-8") as f:
+    with open(log_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")
     return record

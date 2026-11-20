@@ -1,0 +1,13 @@
+{
+  "name": "jixia",
+  "description": "Jixia Advisors: advisory methods, specialist lenses, and a mandatory counter-case.",
+  "owner": { "name": "Jixia Advisors" },
+  "plugins": [
+    {
+      "name": "jixia-advisors",
+      "source": "./plugins/jixia-advisors",
+      "description": "Choose an advisory method and a small roster, hear the counter-case, and leave with a concrete next action.",
+      "category": "Productivity"
+    }
+  ]
+}

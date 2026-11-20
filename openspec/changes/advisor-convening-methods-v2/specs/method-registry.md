@@ -32,7 +32,7 @@ orthogonal to the roster: structure and who-staffs-it are independent axes.
 Practical advisors are selected per question (triage by relevance), not via a
 fixed per-method list. Any practical advisor a method can select — whether named
 in a method allowlist or reachable through question-driven selection — MUST
-resolve to an existing advisor file under `claude/agents/`. The registry MUST NOT
+resolve to an existing advisor file under `jixia/advisors/`. The registry MUST NOT
 use historical representatives as substitutes for missing practical advisors.
 
 #### Scenario: unresolved-practical-advisor-fails
@@ -44,7 +44,7 @@ use historical representatives as substitutes for missing practical advisors.
 ### Requirement: default-roster-policy
 
 Each method SHALL declare a default roster policy naming which pool staffs it by
-default: `practical` (question-driven selection from `claude/agents/`) or
+default: `practical` (question-driven selection from `jixia/advisors/`) or
 `historical` (the method's own source-backed role/exemplar reps). Skeleton
 mapping: `jixia`, `seven-sages`, `junto` default `practical`; `areopagus`,
 `parishad`, `yushitai` default `historical` (their role/exemplar reps are

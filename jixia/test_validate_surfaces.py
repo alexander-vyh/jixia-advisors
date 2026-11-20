@@ -30,7 +30,7 @@ REPO_ROOT = os.path.dirname(HERE)
 # so mutations operate on a real, isolated filesystem.
 _SUBTREES = [
     "claude/commands",
-    "claude/agents",
+    "jixia/advisors",
     ".agents/skills",
     "jixia/reps",
     "docs/historical-council-sources",
@@ -120,10 +120,10 @@ class TestMutations(unittest.TestCase):
         # delegating. claude-wrapper-delegates requires this be rejected.
         advisors = sorted(
             fn[:-3]
-            for fn in os.listdir(self._path("claude/agents"))
+            for fn in os.listdir(self._path("jixia/advisors"))
             if fn.endswith(".md")
         )[:4]
-        embedded = "\n".join("- claude/agents/%s.md" % a for a in advisors)
+        embedded = "\n".join("- jixia/advisors/%s.md" % a for a in advisors)
         with open(self._path("claude/commands/junto.md"), "a", encoding="utf-8") as f:
             f.write("\n## Roster (hardcoded)\n" + embedded + "\n")
         assert_rejects_naming(
@@ -164,9 +164,9 @@ class TestMutations(unittest.TestCase):
 
     # --- S6: surface references a nonexistent advisor ----------------------
     def test_S6_nonexistent_advisor_reference_fails(self):
-        # Inject an explicit claude/agents reference to an advisor not in the repo.
+        # Inject an explicit jixia/advisors reference to an advisor not in the repo.
         with open(self._path("claude/commands/jixia.md"), "a", encoding="utf-8") as f:
-            f.write("\nSee also claude/agents/totally-made-up-advisor.md\n")
+            f.write("\nSee also jixia/advisors/totally-made-up-advisor.md\n")
         errors = vs.validate(self.registry, repo_root=self.root)
         joined = "\n".join(errors)
         self.assertIn("jixia", joined)

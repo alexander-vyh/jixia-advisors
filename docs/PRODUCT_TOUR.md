@@ -22,8 +22,8 @@ outcome:
 There is no separate Jixia application. `/advise` is the shortest installed
 front door. This tour deliberately uses `/advise-full` to show and override the
 recommendation before anything runs. That produces a named practical roster the
-installed surface can dispatch end to end. In Codex, invoke one of the six
-repo-local method skills directly while this repository context is active.
+installed surface can dispatch end to end. In Codex, use `$advise` and ask to see
+the menu first, or invoke one of the six method skills directly in this checkout.
 
 ## 1. Frame the work
 

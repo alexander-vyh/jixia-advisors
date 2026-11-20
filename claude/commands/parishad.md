@@ -35,14 +35,14 @@ procedure exemplar). Never load another method's reps.
 
 These are source-constrained interpretive lenses, not impersonations of an actual
 council. Per the registry's `practical_selection`, you may add question-relevant
-advisors from `claude/agents/` alongside the default historical reps when a
+advisors from `jixia/advisors/` alongside the default historical reps when a
 practical lens is useful.
 
 ## Roster override — practical-only
 
 If the user asks for a **practical-only** roster (e.g. "/parishad <question>
 **practical-only**"), skip the historical representatives and use question-driven
-practical advisors from `claude/agents/` instead — loading no reps.
+practical advisors from `jixia/advisors/` instead — loading no reps.
 
 The override changes the **roster only**. The phases, output fields,
 `verb_field`, entry gate, and refusal from the registry are unchanged: this stays

@@ -23,7 +23,7 @@ Load and honor from the `seven-sages` entry: `entry_gate`, `refusal`, `phases`
 ## Roster
 
 Default is **practical**: cap active voices at seven and draw the smallest useful
-set from `claude/agents/` by relevance to the planning question. No historical
+set from `jixia/advisors/` by relevance to the planning question. No historical
 reps by default.
 
 **Override — historical:** if the user explicitly asks for historical
